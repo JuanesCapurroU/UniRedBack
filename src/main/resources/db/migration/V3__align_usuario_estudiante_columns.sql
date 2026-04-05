@@ -1,0 +1,4 @@
+ALTER TABLE usuarios
+    ADD COLUMN IF NOT EXISTS correo_institucional VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS promedio_academico DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS estado_cuenta VARCHAR(30) DEFAULT 'ACTIVA';
