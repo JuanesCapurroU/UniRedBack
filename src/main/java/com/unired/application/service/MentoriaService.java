@@ -1,23 +1,29 @@
 package com.unired.application.service;
 
 import com.unired.application.dto.request.PostulacionMentorDTO;
+import com.unired.application.dto.request.CalificarMentoriaDTO;
+import com.unired.application.dto.request.EnviarMensajeMentoriaDTO;
 import com.unired.application.dto.request.SolicitudMentoriaDTO;
+import com.unired.application.dto.response.MensajeMentoriaResponse;
 import com.unired.application.dto.response.MentorDetalleResponse;
 import com.unired.application.dto.response.MentorResponse;
 import com.unired.application.dto.response.SolicitudResponse;
 import com.unired.application.mapper.MentoriaMapper;
 import com.unired.domain.enums.Delta;
+import com.unired.domain.model.MensajeMentoria;
 import com.unired.domain.model.Estudiante;
 import com.unired.domain.model.Mentor;
 import com.unired.domain.model.SolicitudMentoria;
 import com.unired.domain.model.Usuario;
 import com.unired.domain.repository.MentorRepository;
+import com.unired.domain.repository.MensajeMentoriaRepository;
 import com.unired.domain.repository.SolicitudMentoriaRepository;
 import com.unired.domain.repository.UsuarioRepository;
 import com.unired.exception.custom.MentorSinCapacidadException;
 import com.unired.exception.custom.RecursoNoEncontradoException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +40,7 @@ public class MentoriaService {
     private final MentorRepository mentorRepository;
     private final UsuarioRepository usuarioRepository;
     private final SolicitudMentoriaRepository solicitudMentoriaRepository;
+    private final MensajeMentoriaRepository mensajeMentoriaRepository;
     private final MentoriaMapper mentoriaMapper;
 
     @Transactional(readOnly = true)
@@ -41,10 +48,14 @@ public class MentoriaService {
         Estudiante estudiante = getEstudiante(estudianteId);
 
         return mentorRepository.findByActivoTrue().stream()
-                .map(mentor -> {
-                    MentorResponse response = mentoriaMapper.toMentorResponse(mentor);
-                    response.setPorcentajeCompatibilidad(calcularCompatibilidad(estudiante, mentor));
-                    return response;
+                .flatMap(mentor -> {
+                    try {
+                        MentorResponse response = mentoriaMapper.toMentorResponse(mentor);
+                        response.setPorcentajeCompatibilidad(calcularCompatibilidad(estudiante, mentor));
+                        return Stream.of(response);
+                    } catch (Exception e) {
+                        return Stream.empty();
+                    }
                 })
                 .sorted(Comparator.comparing(MentorResponse::getPorcentajeCompatibilidad).reversed())
                 .toList();
@@ -109,6 +120,10 @@ public class MentoriaService {
         Estudiante estudiante = getEstudiante(estudianteId);
         Mentor mentor = findMentorById(dto.getMentorId());
 
+        if (!Boolean.TRUE.equals(mentor.getActivo())) {
+            throw new IllegalStateException("El mentor no está activo");
+        }
+
         if (!mentor.tieneCapacidad()) {
             throw new MentorSinCapacidadException("El mentor no tiene capacidad disponible");
         }
@@ -123,7 +138,7 @@ public class MentoriaService {
                 .build();
 
         SolicitudMentoria saved = solicitudMentoriaRepository.save(solicitud);
-        return mentoriaMapper.toSolicitudResponse(saved);
+        return toSolicitudResponse(saved);
     }
 
     @Transactional
@@ -150,6 +165,80 @@ public class MentoriaService {
     }
 
     @Transactional
+    public SolicitudResponse calificarMentoria(Long solicitudId, Long estudianteId, CalificarMentoriaDTO dto) {
+        SolicitudMentoria solicitud = solicitudMentoriaRepository.findByIdAndEstudianteId(solicitudId, estudianteId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Solicitud no encontrada"));
+
+        if (!"FINALIZADA".equals(solicitud.getEstado())) {
+            throw new IllegalStateException("Primero debes finalizar la mentoría");
+        }
+
+        if (!solicitud.puedeCalificar()) {
+            throw new IllegalStateException("La mentoría ya fue calificada o no está lista");
+        }
+
+        solicitud.calificar(dto.getEstrellas(), dto.getComentario());
+        solicitudMentoriaRepository.save(solicitud);
+
+        actualizarSesionesActivas(solicitud.getMentor().getId(), -1);
+        actualizarEstadisticasMentor(solicitud.getMentor().getId());
+
+        return toSolicitudResponse(solicitud);
+    }
+
+    @Transactional
+    public SolicitudResponse finalizarMentoria(Long solicitudId, Long estudianteId) {
+        SolicitudMentoria solicitud = solicitudMentoriaRepository.findByIdAndEstudianteId(solicitudId, estudianteId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Solicitud no encontrada"));
+
+        if (!"CONFIRMADA".equals(solicitud.getEstado())) {
+            throw new IllegalStateException("Solo puedes finalizar una mentoría confirmada");
+        }
+
+        solicitud.finalizar();
+        solicitudMentoriaRepository.save(solicitud);
+        return toSolicitudResponse(solicitud);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MensajeMentoriaResponse> obtenerMensajes(Long solicitudId, Long usuarioId) {
+        SolicitudMentoria solicitud = solicitarSiParticipa(solicitudId, usuarioId);
+        return mensajeMentoriaRepository.findBySolicitudIdOrderByFechaEnvioAsc(solicitud.getId())
+                .stream()
+                .map(mensaje -> MensajeMentoriaResponse.builder()
+                        .id(mensaje.getId())
+                        .emisorId(mensaje.getEmisor().getId())
+                        .emisorNombre(mensaje.getEmisor().getPrimerNombre() + " " + mensaje.getEmisor().getPrimerApellido())
+                        .contenido(mensaje.getContenido())
+                        .fechaEnvio(mensaje.getFechaEnvio())
+                        .esMio(mensaje.getEmisor().getId().equals(usuarioId))
+                        .build())
+                .toList();
+    }
+
+    @Transactional
+    public MensajeMentoriaResponse enviarMensaje(Long solicitudId, Long usuarioId, EnviarMensajeMentoriaDTO dto) {
+        SolicitudMentoria solicitud = solicitarSiParticipa(solicitudId, usuarioId);
+
+        MensajeMentoria mensaje = MensajeMentoria.builder()
+                .solicitud(solicitud)
+                .emisor(usuarioRepository.findById(usuarioId)
+                        .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado")))
+                .contenido(dto.getContenido().trim())
+                .build();
+
+        MensajeMentoria saved = mensajeMentoriaRepository.save(mensaje);
+        return MensajeMentoriaResponse.builder()
+                .id(saved.getId())
+                .emisorId(usuarioId)
+                .emisorNombre(saved.getEmisor().getPrimerNombre() + " " + saved.getEmisor().getPrimerApellido())
+                .contenido(saved.getContenido())
+                .fechaEnvio(saved.getFechaEnvio())
+                .esMio(true)
+                .build();
+    }
+
+    @Transactional
     public void actualizarSesionesActivas(Long id, Integer delta) {
         Mentor mentor = findMentorById(id);
         int target = mentor.getSesionesActivas() + delta;
@@ -167,8 +256,51 @@ public class MentoriaService {
     public List<SolicitudResponse> obtenerMisSolicitudes(Long estudianteId) {
         return solicitudMentoriaRepository.findByEstudianteIdOrderByFechaSolicitudDesc(estudianteId)
                 .stream()
-                .map(mentoriaMapper::toSolicitudResponse)
+                .map(this::toSolicitudResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SolicitudResponse> obtenerSolicitudesRecibidas(Long mentorEstudianteId) {
+        return solicitudMentoriaRepository.findByMentorEstudianteIdOrderByFechaSolicitudDesc(mentorEstudianteId)
+                .stream()
+                .map(this::toSolicitudResponse)
+                .toList();
+    }
+
+    private SolicitudMentoria solicitarSiParticipa(Long solicitudId, Long usuarioId) {
+        SolicitudMentoria solicitud = solicitudMentoriaRepository.findById(solicitudId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Solicitud no encontrada"));
+
+        boolean participa = solicitud.getEstudiante().getId().equals(usuarioId)
+                || solicitud.getMentor().getEstudiante().getId().equals(usuarioId);
+        if (!participa) {
+            throw new RecursoNoEncontradoException("Solicitud no encontrada");
+        }
+        return solicitud;
+    }
+
+    private SolicitudResponse toSolicitudResponse(SolicitudMentoria solicitud) {
+        SolicitudResponse response = mentoriaMapper.toSolicitudResponse(solicitud);
+        boolean puedeCalificar = "CONFIRMADA".equals(solicitud.getEstado()) && solicitud.puedeCalificar();
+        response.setPuedeCalificar(puedeCalificar);
+        response.setHorasRestantesCalificacion(0L);
+        return response;
+    }
+
+    private void actualizarEstadisticasMentor(Long mentorId) {
+        Mentor mentor = findMentorById(mentorId);
+        List<SolicitudMentoria> calificadas = mentor.getSolicitudes().stream()
+                .filter(s -> s.getCalificacionFinal() != null)
+                .toList();
+
+        double promedio = calificadas.isEmpty()
+                ? 0.0
+                : calificadas.stream().mapToInt(SolicitudMentoria::getCalificacionFinal).average().orElse(0.0);
+
+        mentor.setCalificacionPromedio(promedio);
+        mentor.setSesionesCompletadas(calificadas.size());
+        mentorRepository.save(mentor);
     }
 
     private Estudiante getEstudiante(Long estudianteId) {

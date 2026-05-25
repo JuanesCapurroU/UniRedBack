@@ -49,4 +49,9 @@ public class DatabaseConfig {
                 .baselineOnMigrate(true)
                 .load();
     }
+
+    @Bean
+    public org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy flywayMigrationStrategy() {
+        return flyway -> flyway.migrate();
+    }
 }

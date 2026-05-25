@@ -9,6 +9,8 @@ public interface SolicitudMentoriaRepository extends JpaRepository<SolicitudMent
 
     List<SolicitudMentoria> findByEstudianteIdOrderByFechaSolicitudDesc(Long estudianteId);
 
+    Optional<SolicitudMentoria> findByIdAndEstudianteId(Long id, Long estudianteId);
+
     Optional<SolicitudMentoria> findByIdAndMentorEstudianteId(Long id, Long mentorEstudianteId);
 
     List<SolicitudMentoria> findByMentorEstudianteIdOrderByFechaSolicitudDesc(Long mentorEstudianteId);

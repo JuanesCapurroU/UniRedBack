@@ -22,6 +22,10 @@ public interface MentoriaMapper {
     MentorDetalleResponse toMentorDetalleResponse(Mentor mentor);
 
     @Mapping(target = "mentorId", source = "mentor.id")
+    @Mapping(target = "estudianteId", source = "estudiante.id")
+    @Mapping(target = "estudianteNombre", expression = "java(solicitud.getEstudiante().getPrimerNombre() + \" \" + solicitud.getEstudiante().getPrimerApellido())")
     @Mapping(target = "mentorNombre", expression = "java(solicitud.getMentor().getEstudiante().getPrimerNombre() + \" \" + solicitud.getMentor().getEstudiante().getPrimerApellido())")
+    @Mapping(target = "puedeCalificar", ignore = true)
+    @Mapping(target = "horasRestantesCalificacion", ignore = true)
     SolicitudResponse toSolicitudResponse(SolicitudMentoria solicitud);
 }

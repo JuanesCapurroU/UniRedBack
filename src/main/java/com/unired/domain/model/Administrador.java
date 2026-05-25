@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 @Entity
-@DiscriminatorValue("Administrador")
+@DiscriminatorValue("ADMINISTRADOR")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

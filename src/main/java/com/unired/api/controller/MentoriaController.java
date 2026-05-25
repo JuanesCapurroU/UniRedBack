@@ -1,8 +1,11 @@
 package com.unired.api.controller;
 
 import com.unired.application.dto.request.PostulacionMentorDTO;
+import com.unired.application.dto.request.CalificarMentoriaDTO;
+import com.unired.application.dto.request.EnviarMensajeMentoriaDTO;
 import com.unired.application.dto.request.SolicitudMentoriaDTO;
 import com.unired.application.dto.response.ApiResponse;
+import com.unired.application.dto.response.MensajeMentoriaResponse;
 import com.unired.application.dto.response.MentorDetalleResponse;
 import com.unired.application.dto.response.MentorResponse;
 import com.unired.application.dto.response.SolicitudResponse;
@@ -75,6 +78,37 @@ public class MentoriaController extends BaseController {
         return ok("Solicitud enviada", mentoriaService.solicitarMentoria(user.getId(), request));
     }
 
+    @Operation(summary = "Obtener mensajes de mentoría")
+    @GetMapping("/solicitudes/{id}/mensajes")
+    @PreAuthorize("hasRole('ESTUDIANTE')")
+    public ResponseEntity<ApiResponse<List<MensajeMentoriaResponse>>> mensajes(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails user
+    ) {
+        return ok("Mensajes obtenidos", mentoriaService.obtenerMensajes(id, user.getId()));
+    }
+
+    @Operation(summary = "Enviar mensaje de mentoría")
+    @PostMapping("/solicitudes/{id}/mensajes")
+    @PreAuthorize("hasRole('ESTUDIANTE')")
+    public ResponseEntity<ApiResponse<MensajeMentoriaResponse>> enviarMensaje(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails user,
+            @Valid @RequestBody EnviarMensajeMentoriaDTO request
+    ) {
+        return ok("Mensaje enviado", mentoriaService.enviarMensaje(id, user.getId(), request));
+    }
+
+    @Operation(summary = "Finalizar mentoría")
+    @PutMapping("/solicitudes/{id}/finalizar")
+    @PreAuthorize("hasRole('ESTUDIANTE')")
+    public ResponseEntity<ApiResponse<SolicitudResponse>> finalizar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails user
+    ) {
+        return ok("Mentoría finalizada", mentoriaService.finalizarMentoria(id, user.getId()));
+    }
+
     @Operation(summary = "Confirmar solicitud de mentoría")
     @PutMapping("/solicitudes/{id}/confirmar")
     @PreAuthorize("hasRole('ESTUDIANTE')")
@@ -97,6 +131,17 @@ public class MentoriaController extends BaseController {
         return ok("Mentoría rechazada");
     }
 
+    @Operation(summary = "Calificar mentoría")
+    @PutMapping("/solicitudes/{id}/calificar")
+    @PreAuthorize("hasRole('ESTUDIANTE')")
+    public ResponseEntity<ApiResponse<SolicitudResponse>> calificar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails user,
+            @Valid @RequestBody CalificarMentoriaDTO request
+    ) {
+        return ok("Mentoría calificada", mentoriaService.calificarMentoria(id, user.getId(), request));
+    }
+
     @Operation(summary = "Listar mis solicitudes")
     @GetMapping("/mis-solicitudes")
     @PreAuthorize("hasRole('ESTUDIANTE')")
@@ -104,6 +149,15 @@ public class MentoriaController extends BaseController {
             @AuthenticationPrincipal AppUserDetails user
     ) {
         return ok("Solicitudes obtenidas", mentoriaService.obtenerMisSolicitudes(user.getId()));
+    }
+
+    @Operation(summary = "Listar solicitudes recibidas como mentor")
+    @GetMapping("/mis-solicitudes-recibidas")
+    @PreAuthorize("hasRole('ESTUDIANTE')")
+    public ResponseEntity<ApiResponse<List<SolicitudResponse>>> misSolicitudesRecibidas(
+            @AuthenticationPrincipal AppUserDetails user
+    ) {
+        return ok("Solicitudes recibidas obtenidas", mentoriaService.obtenerSolicitudesRecibidas(user.getId()));
     }
 
     @Operation(summary = "Aprobar mentor")

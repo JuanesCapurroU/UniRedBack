@@ -45,6 +45,12 @@ public abstract class Usuario {
     @Column(name = "primer_apellido", nullable = false, length = 80)
     private String primerApellido;
 
+    @Column(name = "segundo_nombre", length = 80)
+    private String segundoNombre;
+
+    @Column(name = "segundo_apellido", length = 80)
+    private String segundoApellido;
+
     @Column(length = 20)
     private String telefono;
 
@@ -60,6 +66,10 @@ public abstract class Usuario {
     @Builder.Default
     @Column(nullable = false)
     private Boolean activo = true;
+
+    @Builder.Default
+    @Column(name = "verificado", nullable = false)
+    private Boolean verificado = false;
 
     @Builder.Default
     @Column(name = "intentos_fallidos", nullable = false)

@@ -13,6 +13,8 @@ public interface MentorRepository extends JpaRepository<Mentor, Long> {
 
     List<Mentor> findByActivoTrue();
 
+    List<Mentor> findByActivoFalse();
+
     Optional<Mentor> findByEstudianteId(Long id);
 
     @Override

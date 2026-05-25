@@ -19,7 +19,7 @@ public interface ActividadMapper {
     @Mapping(target = "cupoDisponible", source = "cupoTotal")
     @Mapping(target = "activa", constant = "true")
     @Mapping(target = "recordatorioWa", constant = "false")
-    @Mapping(target = "administrador", ignore = true)
+    @Mapping(target = "creadoPor", ignore = true)
     @Mapping(target = "inscripciones", ignore = true)
     @Mapping(target = "fechaCreacion", ignore = true)
     Actividad toEntity(ActividadRequest request);

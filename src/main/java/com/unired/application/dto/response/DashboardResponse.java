@@ -8,12 +8,8 @@ import lombok.Data;
 @Builder
 public class DashboardResponse {
 
-    private String nombreEstudiante;
-    private String programaAcademico;
-    private Double promedioAcademico;
-    private Integer eventosAsistidos;
-    private Integer mentoriasActivas;
-    private Integer notificacionesSinLeer;
+    private UsuarioBasicoResponse usuario;
+    private EstadisticasResponse estadisticas;
     private List<RecordatorioResponse> recordatoriosUrgentes;
     private List<ActividadResponse> proximosEventos;
 }

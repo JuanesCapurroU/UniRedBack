@@ -54,7 +54,7 @@ public class NotificacionController extends BaseController {
     }
 
     @Operation(summary = "Obtener configuración de notificaciones")
-    @GetMapping("/config")
+    @GetMapping({"/config", "/configuracion"})
     public ResponseEntity<ApiResponse<ConfiguracionNotificacionesResponse>> obtenerConfig(
             @AuthenticationPrincipal AppUserDetails user
     ) {
@@ -62,7 +62,7 @@ public class NotificacionController extends BaseController {
     }
 
     @Operation(summary = "Actualizar configuración de notificaciones")
-    @PutMapping("/config")
+    @PutMapping({"/config", "/configuracion"})
     public ResponseEntity<ApiResponse<Void>> actualizarConfig(
             @AuthenticationPrincipal AppUserDetails user,
             @Valid @RequestBody ConfiguracionNotificacionesRequest request

@@ -4,12 +4,20 @@ import com.unired.application.dto.request.ActualizarEstudianteRequest;
 import com.unired.application.dto.request.CrearEstudianteRequest;
 import com.unired.application.dto.request.EnviarNotificacionRequest;
 import com.unired.application.dto.response.EstudianteResponse;
+import com.unired.application.dto.response.MentorResponse;
+import com.unired.application.dto.response.UsuarioAdminResponse;
+import com.unired.application.mapper.MentoriaMapper;
 import com.unired.application.mapper.UsuarioMapper;
+import com.unired.domain.model.Administrador;
 import com.unired.domain.model.Estudiante;
+import com.unired.domain.model.Mentor;
 import com.unired.domain.model.Usuario;
+import com.unired.domain.repository.MentorRepository;
 import com.unired.domain.repository.UsuarioRepository;
 import com.unired.exception.custom.RecursoNoEncontradoException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -22,8 +30,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminService {
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
+    private final MentoriaMapper mentoriaMapper;
+    private final MentorRepository mentorRepository;
     private final PasswordEncoder passwordEncoder;
     private final ActividadService actividadService;
     private final NotificacionService notificacionService;
@@ -49,6 +61,7 @@ public class AdminService {
                 .semestre(request.getSemestre())
                 .sede(request.getSede())
                 .activo(true)
+                .verificado(true)
                 .build();
 
         Estudiante saved = (Estudiante) usuarioRepository.save(estudiante);
@@ -130,5 +143,83 @@ public class AdminService {
                 request.getPrioridad(),
                 request.getUrlAccion()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<MentorResponse> listarMentoresPendientes() {
+        return mentorRepository.findByActivoFalse().stream()
+                .flatMap(mentor -> {
+                    try {
+                        MentorResponse response = mentoriaMapper.toMentorResponse(mentor);
+                        response.setPorcentajeCompatibilidad(0.0);
+                        return Stream.of(response);
+                    } catch (Exception e) {
+                        return Stream.empty();
+                    }
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UsuarioAdminResponse> listarUsuarios(Integer page, Integer size) {
+        int currentPage = page == null ? 0 : Math.max(page, 0);
+        int pageSize = size == null ? 20 : Math.max(size, 1);
+
+        List<UsuarioAdminResponse> usuarios = usuarioRepository.findAll().stream()
+                .map(this::toAdminResponse)
+                .toList();
+
+        int start = Math.min(currentPage * pageSize, usuarios.size());
+        int end = Math.min(start + pageSize, usuarios.size());
+
+        return new PageImpl<>(usuarios.subList(start, end), PageRequest.of(currentPage, pageSize), usuarios.size());
+    }
+
+    @Transactional(readOnly = true)
+    public UsuarioAdminResponse obtenerUsuario(Long usuarioId) {
+        return toAdminResponse(getUsuario(usuarioId));
+    }
+
+    @Transactional
+    public UsuarioAdminResponse cambiarActivo(Long usuarioId, boolean activo) {
+        usuarioRepository.updateActivo(usuarioId, activo);
+        return toAdminResponse(getUsuario(usuarioId));
+    }
+
+    @Transactional
+    public UsuarioAdminResponse promoverAAdministrador(Long usuarioId) {
+        Usuario usuario = getUsuario(usuarioId);
+        if (usuario instanceof Administrador) {
+            return toAdminResponse(usuario);
+        }
+
+        usuarioRepository.promoteToAdmin(usuarioId);
+        return toAdminResponse(getUsuario(usuarioId));
+    }
+
+    private Usuario getUsuario(Long usuarioId) {
+        return usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+    }
+
+    private UsuarioAdminResponse toAdminResponse(Usuario usuario) {
+        String rol = usuario instanceof Administrador ? "ADMINISTRADOR" : "ESTUDIANTE";
+        String programaAcademico = usuario instanceof Estudiante estudiante ? estudiante.getProgramaAcademico() : null;
+        Integer semestre = usuario instanceof Estudiante estudiante ? estudiante.getSemestre() : null;
+        String sede = usuario instanceof Estudiante estudiante ? estudiante.getSede() : null;
+
+        return UsuarioAdminResponse.builder()
+                .id(usuario.getId())
+                .primerNombre(usuario.getPrimerNombre())
+                .primerApellido(usuario.getPrimerApellido())
+                .correo(usuario.getCorreo())
+                .rol(rol)
+                .activo(usuario.getActivo())
+                .verificado(usuario.getVerificado())
+                .programaAcademico(programaAcademico)
+                .semestre(semestre)
+                .sede(sede)
+                .fechaCreacion(usuario.getFechaCreacion() == null ? null : usuario.getFechaCreacion().format(DATE_FORMAT))
+                .build();
     }
 }

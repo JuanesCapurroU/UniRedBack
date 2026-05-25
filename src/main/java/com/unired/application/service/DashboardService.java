@@ -2,9 +2,11 @@ package com.unired.application.service;
 
 import com.unired.application.dto.response.ActividadResponse;
 import com.unired.application.dto.response.DashboardResponse;
+import com.unired.application.dto.response.EstadisticasResponse;
 import com.unired.application.dto.response.RecordatorioResponse;
 import com.unired.application.mapper.ActividadMapper;
 import com.unired.application.mapper.NotificacionMapper;
+import com.unired.application.mapper.UsuarioMapper;
 import com.unired.domain.model.Estudiante;
 import com.unired.domain.model.Usuario;
 import com.unired.domain.repository.InscripcionRepository;
@@ -30,6 +32,7 @@ public class DashboardService {
     private final RecordatorioRepository recordatorioRepository;
     private final ActividadMapper actividadMapper;
     private final NotificacionMapper notificacionMapper;
+    private final UsuarioMapper usuarioMapper;
 
     @Transactional(readOnly = true)
     public DashboardResponse obtenerDashboard(Long estudianteId) {
@@ -40,10 +43,14 @@ public class DashboardService {
                 .filter(i -> Boolean.TRUE.equals(i.getAsistio()))
                 .count();
 
+        int eventosInscritos = inscripcionRepository.findByEstudianteIdOrderByFechaInscripcionDesc(estudianteId).size();
+
         int mentoriasActivas = (int) solicitudMentoriaRepository.findByEstudianteIdOrderByFechaSolicitudDesc(estudianteId)
                 .stream()
                 .filter(s -> "CONFIRMADA".equals(s.getEstado()))
                 .count();
+
+        int mentoriasSolicitadas = solicitudMentoriaRepository.findByEstudianteIdOrderByFechaSolicitudDesc(estudianteId).size();
 
         List<RecordatorioResponse> recordatoriosUrgentes = recordatorioRepository
                 .findTop5ByEstudianteIdAndPrioridadOrderByFechaVencimientoAsc(estudianteId, "URGENTE")
@@ -64,12 +71,13 @@ public class DashboardService {
                 .toList();
 
         return DashboardResponse.builder()
-                .nombreEstudiante(estudiante.getPrimerNombre() + " " + estudiante.getPrimerApellido())
-                .programaAcademico(estudiante.getProgramaAcademico())
-                .promedioAcademico(estudiante.getPromedioAcademico())
-                .eventosAsistidos(eventosAsistidos)
-                .mentoriasActivas(mentoriasActivas)
-                .notificacionesSinLeer(notificacionRepository.countNoLeidas(estudianteId).intValue())
+                .usuario(usuarioMapper.toBasicoResponse(estudiante))
+                .estadisticas(EstadisticasResponse.builder()
+                        .eventosInscritos(eventosInscritos)
+                        .eventosAsistidos(eventosAsistidos)
+                        .mentoriasSolicitadas(mentoriasSolicitadas)
+                        .mentoriasActivas(mentoriasActivas)
+                        .build())
                 .recordatoriosUrgentes(recordatoriosUrgentes)
                 .proximosEventos(proximosEventos)
                 .build();

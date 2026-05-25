@@ -5,6 +5,8 @@ import com.unired.application.dto.request.CrearEstudianteRequest;
 import com.unired.application.dto.request.EnviarNotificacionRequest;
 import com.unired.application.dto.response.ApiResponse;
 import com.unired.application.dto.response.EstudianteResponse;
+import com.unired.application.dto.response.MentorResponse;
+import com.unired.application.dto.response.UsuarioAdminResponse;
 import com.unired.application.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -49,6 +51,21 @@ public class AdminController extends BaseController {
         return ok("Estudiantes obtenidos", adminService.listarEstudiantes(page, size));
     }
 
+    @Operation(summary = "Listar usuarios")
+    @GetMapping("/usuarios-todos")
+    public ResponseEntity<ApiResponse<Page<UsuarioAdminResponse>>> listarUsuarios(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "20") Integer size
+    ) {
+        return ok("Usuarios obtenidos", adminService.listarUsuarios(page, size));
+    }
+
+    @Operation(summary = "Obtener usuario")
+    @GetMapping("/usuarios/{id}")
+    public ResponseEntity<ApiResponse<UsuarioAdminResponse>> obtenerUsuario(@PathVariable Long id) {
+        return ok("Usuario obtenido", adminService.obtenerUsuario(id));
+    }
+
     @Operation(summary = "Actualizar estudiante")
     @PutMapping("/usuarios/{id}")
     public ResponseEntity<ApiResponse<EstudianteResponse>> actualizarEstudiante(
@@ -56,6 +73,27 @@ public class AdminController extends BaseController {
             @Valid @RequestBody ActualizarEstudianteRequest request
     ) {
         return ok("Estudiante actualizado", adminService.actualizarEstudiante(id, request));
+    }
+
+    @Operation(summary = "Cambiar estado de usuario")
+    @PutMapping("/usuarios/{id}/estado")
+    public ResponseEntity<ApiResponse<UsuarioAdminResponse>> cambiarEstado(
+            @PathVariable Long id,
+            @RequestParam boolean activo
+    ) {
+        return ok("Estado actualizado", adminService.cambiarActivo(id, activo));
+    }
+
+    @Operation(summary = "Promover usuario a administrador")
+    @PutMapping("/usuarios/{id}/promover-admin")
+    public ResponseEntity<ApiResponse<UsuarioAdminResponse>> promoverAAdmin(@PathVariable Long id) {
+        return ok("Usuario promovido a administrador", adminService.promoverAAdministrador(id));
+    }
+
+    @Operation(summary = "Listar mentores pendientes")
+    @GetMapping("/mentores/pendientes")
+    public ResponseEntity<ApiResponse<List<MentorResponse>>> listarMentoresPendientes() {
+        return ok("Mentores pendientes obtenidos", adminService.listarMentoresPendientes());
     }
 
     @Operation(summary = "Obtener asistentes de actividad")

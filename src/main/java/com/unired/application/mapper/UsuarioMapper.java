@@ -26,8 +26,11 @@ public interface UsuarioMapper {
         if (usuario == null) {
             return "";
         }
-        return usuario instanceof Administrador
-                ? "ADMINISTRADOR"
-                : "ESTUDIANTE";
+        if (usuario instanceof Administrador) {
+            return "ADMINISTRADOR";
+        }
+
+        String className = usuario.getClass().getSimpleName().toUpperCase();
+        return className.contains("ADMINISTRADOR") ? "ADMINISTRADOR" : "ESTUDIANTE";
     }
 }

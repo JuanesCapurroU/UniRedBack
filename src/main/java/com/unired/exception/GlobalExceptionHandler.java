@@ -64,6 +64,32 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<ErrorDetail>> handleIllegalState(IllegalStateException ex, HttpServletRequest request) {
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                ErrorDetail.builder()
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .error("Bad Request")
+                        .build(),
+                request
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<ErrorDetail>> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                ErrorDetail.builder()
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .error("Bad Request")
+                        .build(),
+                request
+        );
+    }
+
     @ExceptionHandler({BadCredentialsException.class, TokenInvalidoException.class})
     public ResponseEntity<ApiResponse<ErrorDetail>> handleUnauthorized(RuntimeException ex, HttpServletRequest request) {
         return buildErrorResponse(

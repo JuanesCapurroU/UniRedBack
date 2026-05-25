@@ -38,7 +38,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new LockedException("Cuenta bloqueada");
         }
 
-        String role = usuario instanceof Administrador ? "ADMINISTRADOR" : "ESTUDIANTE";
+        String role = resolveRole(usuario);
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
         return AppUserDetails.builder()
@@ -50,5 +50,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .blockedUntil(usuario.getBloqueadoHasta())
                 .authorities(authorities)
                 .build();
+    }
+
+    private String resolveRole(Usuario usuario) {
+        if (usuario instanceof Administrador) {
+            return "ADMINISTRADOR";
+        }
+
+        String className = usuario.getClass().getSimpleName().toUpperCase();
+        return className.contains("ADMINISTRADOR") ? "ADMINISTRADOR" : "ESTUDIANTE";
     }
 }

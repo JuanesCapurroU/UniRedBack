@@ -53,8 +53,20 @@ public class SolicitudMentoria {
     @Column(name = "fecha_solicitud", nullable = false)
     private LocalDateTime fechaSolicitud;
 
+    @Column(name = "fecha_inicio")
+    private LocalDateTime fechaInicio;
+
     @Column(name = "fecha_respuesta")
     private LocalDateTime fechaRespuesta;
+
+    @Column(name = "fecha_finalizacion")
+    private LocalDateTime fechaFinalizacion;
+
+    @Column(name = "calificacion_final")
+    private Integer calificacionFinal;
+
+    @Column(name = "comentario_calificacion", columnDefinition = "TEXT")
+    private String comentarioCalificacion;
 
     @PrePersist
     protected void onCreate() {
@@ -64,10 +76,28 @@ public class SolicitudMentoria {
     public void confirmar() {
         this.estado = "CONFIRMADA";
         this.fechaRespuesta = LocalDateTime.now();
+        this.fechaInicio = LocalDateTime.now();
+    }
+
+    public void finalizar() {
+        this.estado = "FINALIZADA";
+        this.fechaFinalizacion = LocalDateTime.now();
+        this.fechaRespuesta = LocalDateTime.now();
     }
 
     public void rechazar(String motivo) {
         this.estado = "RECHAZADA";
         this.fechaRespuesta = LocalDateTime.now();
+    }
+
+    public boolean puedeCalificar() {
+        return "FINALIZADA".equals(estado) && calificacionFinal == null;
+    }
+
+    public void calificar(Integer estrellas, String comentario) {
+        this.calificacionFinal = estrellas;
+        this.comentarioCalificacion = comentario;
+        this.fechaRespuesta = LocalDateTime.now();
+        this.estado = "CALIFICADA";
     }
 }

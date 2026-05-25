@@ -71,7 +71,7 @@ public class Actividad {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "administrador_id")
-    private Administrador administrador;
+    private Usuario creadoPor;
 
     @Builder.Default
     @OneToMany(mappedBy = "actividad", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

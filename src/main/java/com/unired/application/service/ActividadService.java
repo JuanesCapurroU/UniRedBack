@@ -6,7 +6,6 @@ import com.unired.application.dto.response.ActividadResponse;
 import com.unired.application.dto.response.InscripcionResponse;
 import com.unired.application.mapper.ActividadMapper;
 import com.unired.domain.model.Actividad;
-import com.unired.domain.model.Administrador;
 import com.unired.domain.model.ConfiguracionNotificaciones;
 import com.unired.domain.model.Estudiante;
 import com.unired.domain.model.Inscripcion;
@@ -67,16 +66,12 @@ public class ActividadService {
     }
 
     @Transactional
-    public ActividadResponse crearActividad(ActividadRequest request, Long administradorId) {
-        Usuario usuario = usuarioRepository.findById(administradorId)
-                .orElseThrow(() -> new RecursoNoEncontradoException("Administrador no encontrado"));
-
-        if (!(usuario instanceof Administrador administrador)) {
-            throw new RecursoNoEncontradoException("Usuario sin permisos de administrador");
-        }
+    public ActividadResponse crearActividad(ActividadRequest request, Long usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
 
         Actividad actividad = actividadMapper.toEntity(request);
-        actividad.setAdministrador(administrador);
+        actividad.setCreadoPor(usuario);
         Actividad saved = actividadRepository.save(actividad);
         return actividadMapper.toResponse(saved);
     }

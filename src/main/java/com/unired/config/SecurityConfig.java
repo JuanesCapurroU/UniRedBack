@@ -35,10 +35,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/auth/login",
-                                "/auth/refresh",
-                                "/api/v1/auth/login",
-                                "/api/v1/auth/refresh",
+                                "/auth/**",
+                                "/api/v1/auth/**",
                                 "/api/v1/actuator/health",
                                 "/actuator/health",
                                 "/swagger-ui/**",
@@ -48,6 +46,8 @@ public class SecurityConfig {
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .formLogin(formLogin -> formLogin.disable())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

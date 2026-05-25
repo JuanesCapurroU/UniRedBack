@@ -1,9 +1,13 @@
 package com.unired.application.service;
 
+import com.unired.application.dto.request.RegistroRequest;
 import com.unired.application.dto.response.LoginResponse;
+import com.unired.application.dto.response.RegistroResponse;
 import com.unired.application.mapper.UsuarioMapper;
 import com.unired.config.JwtConfig;
+import com.unired.domain.model.CodigoVerificacion.TipoCodigo;
 import com.unired.domain.model.ConfiguracionNotificaciones;
+import com.unired.domain.model.Estudiante;
 import com.unired.domain.model.Sesion;
 import com.unired.domain.model.Usuario;
 import com.unired.domain.repository.ConfiguracionNotificacionesRepository;
@@ -41,6 +45,7 @@ public class AuthService {
     private final UserDetailsServiceImpl userDetailsService;
     private final UsuarioMapper usuarioMapper;
     private final JwtConfig jwtConfig;
+    private final EmailService emailService;
 
     @Transactional
     public LoginResponse login(String correo, String password) {
@@ -48,6 +53,10 @@ public class AuthService {
 
         Usuario usuario = usuarioRepository.findByCorreo(correo)
                 .orElseThrow(() -> new BadCredentialsException(SecurityConstants.INVALID_CREDENTIALS_MESSAGE));
+
+        if (!usuario.getVerificado()) {
+            throw new IllegalStateException("Debes verificar tu correo antes de iniciar sesión");
+        }
 
         validateLockStatus(usuario);
 
@@ -143,6 +152,98 @@ public class AuthService {
                 .orElseGet(() -> ConfiguracionNotificaciones.builder().usuario(usuario).build());
         config.setFcmToken(fcmToken);
         configuracionNotificacionesRepository.save(config);
+    }
+
+    @Transactional
+    public RegistroResponse registrar(RegistroRequest request) {
+        validateDomain(request.getCorreo());
+
+        if (usuarioRepository.existsByCorreo(request.getCorreo())) {
+            throw new IllegalStateException("El correo ya está registrado");
+        }
+
+        if (usuarioRepository.existsByNumeroDocumento(request.getNumeroDocumento())) {
+            throw new IllegalStateException("El número de documento ya está registrado");
+        }
+
+        Estudiante estudiante = Estudiante.builder()
+                .tipoDocumento(request.getTipoDocumento())
+                .numeroDocumento(request.getNumeroDocumento())
+                .primerNombre(request.getPrimerNombre())
+                .primerApellido(request.getPrimerApellido())
+                .programaAcademico(request.getProgramaAcademico())
+                .semestre(request.getSemestre())
+                .sede("Zipaquirá")
+                .segundoNombre(request.getSegundoNombre())
+                .segundoApellido(request.getSegundoApellido())
+                .telefono(request.getTelefono())
+                .correo(request.getCorreo())
+                .correoInstitucional(request.getCorreo())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .activo(false)
+                .verificado(false)
+                .build();
+
+        usuarioRepository.save(estudiante);
+
+        emailService.generarCodigoVerificacion(request.getCorreo(), TipoCodigo.REGISTRO);
+
+        return RegistroResponse.builder()
+                .mensaje("Código de verificación enviado a tu correo")
+                .correo(request.getCorreo())
+                .verificado(false)
+                .build();
+    }
+
+    @Transactional
+    public LoginResponse verificarCorreo(String correo, String codigo) {
+        boolean valido = emailService.verificarCodigo(correo, codigo, TipoCodigo.REGISTRO);
+
+        if (!valido) {
+            throw new BadCredentialsException("Código inválido o expirado");
+        }
+
+        Usuario usuario = usuarioRepository.findByCorreo(correo)
+                .orElseThrow(() -> new TokenInvalidoException("Usuario no encontrado"));
+
+        usuario.setVerificado(true);
+        usuario.setActivo(true);
+        usuarioRepository.save(usuario);
+
+        AppUserDetails userDetails = userDetailsService.buildUserDetails(usuario);
+        String accessToken = jwtUtil.generateToken(userDetails, usuario.getId(), userDetails.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+
+        Sesion sesion = Sesion.builder()
+                .usuario(usuario)
+                .tokenJwt(accessToken)
+                .refreshToken(refreshToken)
+                .fechaInicio(LocalDateTime.now())
+                .fechaExpiracion(LocalDateTime.now().plus(Duration.ofMillis(jwtConfig.getExpirationMs())))
+                .activo(true)
+                .build();
+        sesionRepository.save(sesion);
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .expiresIn(jwtConfig.getExpirationMs() / 1000)
+                .usuario(usuarioMapper.toBasicoResponse(usuario))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public void reenviarCodigo(String correo) {
+        validateDomain(correo);
+
+        Usuario usuario = usuarioRepository.findByCorreo(correo)
+                .orElseThrow(() -> new IllegalArgumentException("Correo no registrado"));
+
+        if (usuario.getVerificado()) {
+            throw new IllegalStateException("El correo ya está verificado");
+        }
+
+        emailService.generarCodigoVerificacion(correo, TipoCodigo.REGISTRO);
     }
 
     public String makeFakeToken(String correo) {

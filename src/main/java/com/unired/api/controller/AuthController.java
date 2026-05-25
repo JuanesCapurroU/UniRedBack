@@ -3,8 +3,11 @@ package com.unired.api.controller;
 import com.unired.application.dto.request.FcmTokenRequest;
 import com.unired.application.dto.request.LoginRequest;
 import com.unired.application.dto.request.RefreshTokenRequest;
+import com.unired.application.dto.request.RegistroRequest;
+import com.unired.application.dto.request.VerificarCodigoRequest;
 import com.unired.application.dto.response.ApiResponse;
 import com.unired.application.dto.response.LoginResponse;
+import com.unired.application.dto.response.RegistroResponse;
 import com.unired.application.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -70,5 +73,37 @@ public class AuthController extends BaseController {
     ) {
         authService.actualizarFcmToken(authorization, request.getFcmToken());
         return ok("Token FCM actualizado");
+    }
+
+    @Operation(summary = "Registrarse")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Registro iniciado, código enviado"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Datos inválidos o correo ya registrado")
+    })
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<RegistroResponse>> register(@Valid @RequestBody RegistroRequest request) {
+        RegistroResponse response = authService.registrar(request);
+        return ok("Registro iniciado", response);
+    }
+
+    @Operation(summary = "Verificar correo")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Correo verificado"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Código inválido")
+    })
+    @PostMapping("/verificar")
+    public ResponseEntity<ApiResponse<LoginResponse>> verificar(@Valid @RequestBody VerificarCodigoRequest request) {
+        LoginResponse response = authService.verificarCorreo(request.getCorreo(), request.getCodigo());
+        return ok("Correo verificado exitosamente", response);
+    }
+
+    @Operation(summary = "Reenviar código de verificación")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Código reenviado")
+    })
+    @PostMapping("/reenviar-codigo")
+    public ResponseEntity<ApiResponse<Void>> reenviarCodigo(@Valid @RequestBody LoginRequest request) {
+        authService.reenviarCodigo(request.getCorreo());
+        return ok("Código de verificación reenviado");
     }
 }
