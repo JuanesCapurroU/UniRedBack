@@ -174,12 +174,17 @@ public class MentoriaService {
         SolicitudMentoria solicitud = solicitudMentoriaRepository.findByIdAndMentorEstudianteId(solicitudId, mentorEstudianteId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Solicitud no encontrada"));
 
+        if (!"PENDIENTE".equals(solicitud.getEstado())) {
+            throw new IllegalStateException("Solo puedes aceptar solicitudes pendientes");
+        }
+
         if (!solicitud.getMentor().tieneCapacidad()) {
             throw new MentorSinCapacidadException("El mentor no tiene capacidad disponible");
         }
 
         solicitud.confirmar();
         solicitudMentoriaRepository.save(solicitud);
+        cerrarSolicitudesDuplicadasPendientes(solicitud, "Duplicada: solicitud ya aceptada");
         actualizarSesionesActivas(solicitud.getMentor().getId(), 1);
 
         try {
@@ -201,8 +206,13 @@ public class MentoriaService {
         SolicitudMentoria solicitud = solicitudMentoriaRepository.findByIdAndMentorEstudianteId(solicitudId, mentorEstudianteId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Solicitud no encontrada"));
 
+        if (!"PENDIENTE".equals(solicitud.getEstado())) {
+            throw new IllegalStateException("Solo puedes rechazar solicitudes pendientes");
+        }
+
         solicitud.rechazar("Rechazada por mentor");
         solicitudMentoriaRepository.save(solicitud);
+        cerrarSolicitudesDuplicadasPendientes(solicitud, "Duplicada: solicitud ya rechazada");
 
         try {
             notificacionService.crearNotificacion(
@@ -244,12 +254,30 @@ public class MentoriaService {
     public SolicitudResponse finalizarMentoria(Long solicitudId, Long usuarioId) {
         SolicitudMentoria solicitud = solicitarSiParticipa(solicitudId, usuarioId);
 
+        if (!solicitud.getEstudiante().getId().equals(usuarioId)) {
+            throw new IllegalStateException("Solo el estudiante puede finalizar la mentoría");
+        }
+
         if (!"CONFIRMADA".equals(solicitud.getEstado())) {
             throw new IllegalStateException("Solo puedes finalizar una mentoría confirmada");
         }
 
         solicitud.finalizar();
         solicitudMentoriaRepository.save(solicitud);
+
+        try {
+            notificacionService.crearNotificacion(
+                    solicitud.getMentor().getEstudiante().getId(),
+                    "MENTORIA",
+                    "Mentoría finalizada",
+                    solicitud.getEstudiante().getPrimerNombre() + " finalizó la sesión de mentoría.",
+                    "MEDIA",
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("No se pudo crear notificación de mentoría finalizada: {}", e.getMessage());
+        }
+
         return toSolicitudResponse(solicitud);
     }
 
@@ -325,10 +353,11 @@ public class MentoriaService {
 
     @Transactional(readOnly = true)
     public List<SolicitudResponse> obtenerMisSolicitudes(Long estudianteId) {
-        return solicitudMentoriaRepository.findByEstudianteIdOrderByFechaSolicitudDesc(estudianteId)
-                .stream()
-                .map(this::toSolicitudResponse)
-                .toList();
+        Map<Long, SolicitudMentoria> porMentor = new LinkedHashMap<>();
+        for (SolicitudMentoria solicitud : solicitudMentoriaRepository.findByEstudianteIdOrderByFechaSolicitudDesc(estudianteId)) {
+            porMentor.merge(solicitud.getMentor().getId(), solicitud, this::elegirSolicitudPrioritaria);
+        }
+        return porMentor.values().stream().map(this::toSolicitudResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -393,10 +422,49 @@ public class MentoriaService {
 
     @Transactional(readOnly = true)
     public List<SolicitudResponse> obtenerSolicitudesRecibidas(Long mentorEstudianteId) {
-        return solicitudMentoriaRepository.findByMentorEstudianteIdOrderByFechaSolicitudDesc(mentorEstudianteId)
-                .stream()
-                .map(this::toSolicitudResponse)
-                .toList();
+        Map<Long, SolicitudMentoria> porEstudiante = new LinkedHashMap<>();
+        for (SolicitudMentoria solicitud : solicitudMentoriaRepository.findByMentorEstudianteIdOrderByFechaSolicitudDesc(mentorEstudianteId)) {
+            porEstudiante.merge(solicitud.getEstudiante().getId(), solicitud, this::elegirSolicitudPrioritaria);
+        }
+        return porEstudiante.values().stream().map(this::toSolicitudResponse).toList();
+    }
+
+    private void cerrarSolicitudesDuplicadasPendientes(SolicitudMentoria principal, String motivo) {
+        List<SolicitudMentoria> duplicadas = solicitudMentoriaRepository
+                .findByEstudianteIdAndMentorIdAndEstadoAndIdNotOrderByFechaSolicitudDesc(
+                        principal.getEstudiante().getId(),
+                        principal.getMentor().getId(),
+                        "PENDIENTE",
+                        principal.getId());
+        for (SolicitudMentoria duplicada : duplicadas) {
+            duplicada.rechazar(motivo);
+            solicitudMentoriaRepository.save(duplicada);
+        }
+    }
+
+    private SolicitudMentoria elegirSolicitudPrioritaria(SolicitudMentoria actual, SolicitudMentoria candidato) {
+        int prioridadActual = prioridadEstado(actual.getEstado());
+        int prioridadCandidato = prioridadEstado(candidato.getEstado());
+        if (prioridadCandidato != prioridadActual) {
+            return prioridadCandidato > prioridadActual ? candidato : actual;
+        }
+        if (candidato.getFechaSolicitud() == null) {
+            return actual;
+        }
+        if (actual.getFechaSolicitud() == null) {
+            return candidato;
+        }
+        return candidato.getFechaSolicitud().isAfter(actual.getFechaSolicitud()) ? candidato : actual;
+    }
+
+    private int prioridadEstado(String estado) {
+        return switch (estado) {
+            case "PENDIENTE" -> 4;
+            case "CONFIRMADA" -> 3;
+            case "FINALIZADA" -> 2;
+            case "CALIFICADA" -> 1;
+            default -> 0;
+        };
     }
 
     private SolicitudMentoria solicitarSiParticipa(Long solicitudId, Long usuarioId) {

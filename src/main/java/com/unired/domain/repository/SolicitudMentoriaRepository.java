@@ -26,4 +26,11 @@ public interface SolicitudMentoriaRepository extends JpaRepository<SolicitudMent
             Long mentorId,
             Collection<String> estados
     );
+
+    List<SolicitudMentoria> findByEstudianteIdAndMentorIdAndEstadoAndIdNotOrderByFechaSolicitudDesc(
+            Long estudianteId,
+            Long mentorId,
+            String estado,
+            Long id
+    );
 }
