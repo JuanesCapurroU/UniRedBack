@@ -24,7 +24,9 @@ import com.unired.exception.custom.MentorSinCapacidadException;
 import com.unired.exception.custom.RecursoNoEncontradoException;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,7 @@ public class MentoriaService {
     private static final double PESO_CALIFICACION = 30.0;
     private static final double PESO_SESIONES = 20.0;
     private static final double PESO_DISPONIBILIDAD = 10.0;
+    private static final List<String> ESTADOS_CONVERSACION_ABIERTA = List.of("PENDIENTE", "CONFIRMADA", "FINALIZADA");
 
     private final MentorRepository mentorRepository;
     private final UsuarioRepository usuarioRepository;
@@ -123,6 +126,13 @@ public class MentoriaService {
     public SolicitudResponse solicitarMentoria(Long estudianteId, SolicitudMentoriaDTO dto) {
         Estudiante estudiante = getEstudiante(estudianteId);
         Mentor mentor = findMentorById(dto.getMentorId());
+
+        var solicitudExistente = solicitudMentoriaRepository
+                .findFirstByEstudianteIdAndMentorIdAndEstadoInOrderByFechaSolicitudDesc(
+                        estudianteId, dto.getMentorId(), ESTADOS_CONVERSACION_ABIERTA);
+        if (solicitudExistente.isPresent()) {
+            return toSolicitudResponse(solicitudExistente.get());
+        }
 
         if (!Boolean.TRUE.equals(mentor.getActivo())) {
             throw new IllegalStateException("El mentor no está activo");
@@ -323,43 +333,62 @@ public class MentoriaService {
 
     @Transactional(readOnly = true)
     public List<ChatResponse> obtenerChats(Long usuarioId) {
-        return solicitudMentoriaRepository.findAllByParticipanteId(usuarioId).stream()
-                .map(solicitud -> {
-                    boolean soySolicitante = solicitud.getEstudiante().getId().equals(usuarioId);
-                    String otroNombre;
-                    Long otroId;
-                    if (soySolicitante) {
-                        otroId = solicitud.getMentor().getEstudiante().getId();
-                        otroNombre = solicitud.getMentor().getEstudiante().getPrimerNombre()
-                                + " " + solicitud.getMentor().getEstudiante().getPrimerApellido();
-                    } else {
-                        otroId = solicitud.getEstudiante().getId();
-                        otroNombre = solicitud.getEstudiante().getPrimerNombre()
-                                + " " + solicitud.getEstudiante().getPrimerApellido();
-                    }
+        Map<Long, ChatResponse> chatPorInterlocutor = new LinkedHashMap<>();
 
-                    return mensajeMentoriaRepository
-                            .findTopBySolicitudIdOrderByFechaEnvioDesc(solicitud.getId())
-                            .map(ultimo -> ChatResponse.builder()
-                                    .solicitudId(solicitud.getId())
-                                    .estado(solicitud.getEstado())
-                                    .otroUsuarioId(otroId)
-                                    .otroUsuarioNombre(otroNombre)
-                                    .ultimoMensaje(ultimo.getContenido())
-                                    .fechaUltimoMensaje(ultimo.getFechaEnvio() != null ? ultimo.getFechaEnvio().toString() : null)
-                                    .soySolicitante(soySolicitante)
-                                    .build())
-                            .orElseGet(() -> ChatResponse.builder()
-                                    .solicitudId(solicitud.getId())
-                                    .estado(solicitud.getEstado())
-                                    .otroUsuarioId(otroId)
-                                    .otroUsuarioNombre(otroNombre)
-                                    .ultimoMensaje(null)
-                                    .fechaUltimoMensaje(null)
-                                    .soySolicitante(soySolicitante)
-                                    .build());
-                })
-                .toList();
+        for (SolicitudMentoria solicitud : solicitudMentoriaRepository.findAllByParticipanteId(usuarioId)) {
+            ChatResponse chat = toChatResponse(solicitud, usuarioId);
+            chatPorInterlocutor.merge(chat.getOtroUsuarioId(), chat, this::elegirChatMasReciente);
+        }
+
+        return List.copyOf(chatPorInterlocutor.values());
+    }
+
+    private ChatResponse toChatResponse(SolicitudMentoria solicitud, Long usuarioId) {
+        boolean soySolicitante = solicitud.getEstudiante().getId().equals(usuarioId);
+        Long otroId;
+        String otroNombre;
+        if (soySolicitante) {
+            otroId = solicitud.getMentor().getEstudiante().getId();
+            otroNombre = solicitud.getMentor().getEstudiante().getPrimerNombre()
+                    + " " + solicitud.getMentor().getEstudiante().getPrimerApellido();
+        } else {
+            otroId = solicitud.getEstudiante().getId();
+            otroNombre = solicitud.getEstudiante().getPrimerNombre()
+                    + " " + solicitud.getEstudiante().getPrimerApellido();
+        }
+
+        return mensajeMentoriaRepository
+                .findTopBySolicitudIdOrderByFechaEnvioDesc(solicitud.getId())
+                .map(ultimo -> ChatResponse.builder()
+                        .solicitudId(solicitud.getId())
+                        .estado(solicitud.getEstado())
+                        .otroUsuarioId(otroId)
+                        .otroUsuarioNombre(otroNombre)
+                        .ultimoMensaje(ultimo.getContenido())
+                        .fechaUltimoMensaje(ultimo.getFechaEnvio() != null ? ultimo.getFechaEnvio().toString() : null)
+                        .soySolicitante(soySolicitante)
+                        .build())
+                .orElseGet(() -> ChatResponse.builder()
+                        .solicitudId(solicitud.getId())
+                        .estado(solicitud.getEstado())
+                        .otroUsuarioId(otroId)
+                        .otroUsuarioNombre(otroNombre)
+                        .ultimoMensaje(null)
+                        .fechaUltimoMensaje(null)
+                        .soySolicitante(soySolicitante)
+                        .build());
+    }
+
+    private ChatResponse elegirChatMasReciente(ChatResponse actual, ChatResponse candidato) {
+        if (actual.getFechaUltimoMensaje() == null) {
+            return candidato;
+        }
+        if (candidato.getFechaUltimoMensaje() == null) {
+            return actual;
+        }
+        return candidato.getFechaUltimoMensaje().compareTo(actual.getFechaUltimoMensaje()) > 0
+                ? candidato
+                : actual;
     }
 
     @Transactional(readOnly = true)
