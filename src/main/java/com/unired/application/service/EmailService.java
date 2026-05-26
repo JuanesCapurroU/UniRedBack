@@ -3,18 +3,18 @@ package com.unired.application.service;
 import com.unired.domain.model.CodigoVerificacion;
 import com.unired.domain.model.CodigoVerificacion.TipoCodigo;
 import com.unired.domain.repository.CodigoVerificacionRepository;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -26,11 +26,15 @@ public class EmailService {
     private static final int CODIGO_LENGTH = 6;
     private static final int MAX_INTENTOS = 3;
     private static final int MINUTOS_EXPIRACION = 15;
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
 
-    private final JavaMailSender mailSender;
+    private final RestTemplate restTemplate;
     private final CodigoVerificacionRepository codigoVerificacionRepository;
 
-    @Value("${spring.mail.username:noreply@uniminuto.edu.co}")
+    @Value("${resend.api-key}")
+    private String resendApiKey;
+
+    @Value("${resend.from-email}")
     private String fromEmail;
 
     @Transactional
@@ -104,13 +108,7 @@ public class EmailService {
         return sb.toString();
     }
 
-    private void enviarEmailCodigoVerificacion(String correo, String codigo, TipoCodigo tipo) throws MessagingException {
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-        helper.setFrom(fromEmail);
-        helper.setTo(correo);
-
+    private void enviarEmailCodigoVerificacion(String correo, String codigo, TipoCodigo tipo) {
         String asunto;
         String cuerpoHtml;
 
@@ -122,11 +120,25 @@ public class EmailService {
             cuerpoHtml = buildHtmlRecuperacion(codigo);
         }
 
-        helper.setSubject(asunto);
-        helper.setText(cuerpoHtml, true);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(resendApiKey);
 
-        mailSender.send(message);
-        log.info("Email de verificación enviado a {}", correo);
+        Map<String, Object> body = Map.of(
+                "from", fromEmail,
+                "to", List.of(correo),
+                "subject", asunto,
+                "html", cuerpoHtml
+        );
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(RESEND_API_URL, request, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            log.info("Email de verificación enviado a {}", correo);
+        } else {
+            throw new RuntimeException("Resend API respondió con estado: " + response.getStatusCode());
+        }
     }
 
     private String buildHtmlRegistro(String codigo) {
