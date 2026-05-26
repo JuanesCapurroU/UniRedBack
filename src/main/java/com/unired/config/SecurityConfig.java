@@ -1,6 +1,7 @@
 package com.unired.config;
 
 import com.unired.infrastructure.security.JwtAuthFilter;
+import com.unired.infrastructure.security.RestSecurityHandlers;
 import com.unired.infrastructure.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +27,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final RestSecurityHandlers restSecurityHandlers;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -53,6 +55,10 @@ public class SecurityConfig {
                                 "/api/v1/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(restSecurityHandlers.authenticationEntryPoint())
+                        .accessDeniedHandler(restSecurityHandlers.accessDeniedHandler())
                 )
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
