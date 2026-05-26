@@ -5,6 +5,7 @@ import com.unired.application.dto.request.CalificarMentoriaDTO;
 import com.unired.application.dto.request.EnviarMensajeMentoriaDTO;
 import com.unired.application.dto.request.SolicitudMentoriaDTO;
 import com.unired.application.dto.response.ApiResponse;
+import com.unired.application.dto.response.ChatResponse;
 import com.unired.application.dto.response.MensajeMentoriaResponse;
 import com.unired.application.dto.response.MentorDetalleResponse;
 import com.unired.application.dto.response.MentorResponse;
@@ -140,6 +141,33 @@ public class MentoriaController extends BaseController {
             @Valid @RequestBody CalificarMentoriaDTO request
     ) {
         return ok("Mentoría calificada", mentoriaService.calificarMentoria(id, user.getId(), request));
+    }
+
+    @Operation(summary = "Listar mis chats de mentoría (como solicitante o mentor)")
+    @GetMapping("/chats")
+    public ResponseEntity<ApiResponse<List<ChatResponse>>> misChats(
+            @AuthenticationPrincipal AppUserDetails user
+    ) {
+        return ok("Chats obtenidos", mentoriaService.obtenerChats(user.getId()));
+    }
+
+    @Operation(summary = "Obtener mensajes de un chat (solicitante o mentor)")
+    @GetMapping("/chats/{id}/mensajes")
+    public ResponseEntity<ApiResponse<List<MensajeMentoriaResponse>>> mensajesChat(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails user
+    ) {
+        return ok("Mensajes obtenidos", mentoriaService.obtenerMensajes(id, user.getId()));
+    }
+
+    @Operation(summary = "Enviar mensaje en un chat (solicitante o mentor)")
+    @PostMapping("/chats/{id}/mensajes")
+    public ResponseEntity<ApiResponse<MensajeMentoriaResponse>> enviarMensajeChat(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails user,
+            @Valid @RequestBody EnviarMensajeMentoriaDTO request
+    ) {
+        return ok("Mensaje enviado", mentoriaService.enviarMensaje(id, user.getId(), request));
     }
 
     @Operation(summary = "Listar mis solicitudes")

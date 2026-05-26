@@ -4,6 +4,7 @@ import com.unired.application.dto.request.PostulacionMentorDTO;
 import com.unired.application.dto.request.CalificarMentoriaDTO;
 import com.unired.application.dto.request.EnviarMensajeMentoriaDTO;
 import com.unired.application.dto.request.SolicitudMentoriaDTO;
+import com.unired.application.dto.response.ChatResponse;
 import com.unired.application.dto.response.MensajeMentoriaResponse;
 import com.unired.application.dto.response.MentorDetalleResponse;
 import com.unired.application.dto.response.MentorResponse;
@@ -318,6 +319,47 @@ public class MentoriaService {
         return solicitudMentoriaRepository.findByEstudianteIdOrderByFechaSolicitudDesc(estudianteId)
                 .stream()
                 .map(this::toSolicitudResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatResponse> obtenerChats(Long usuarioId) {
+        return solicitudMentoriaRepository.findAllByParticipanteId(usuarioId).stream()
+                .map(solicitud -> {
+                    boolean soySolicitante = solicitud.getEstudiante().getId().equals(usuarioId);
+                    String otroNombre;
+                    Long otroId;
+                    if (soySolicitante) {
+                        otroId = solicitud.getMentor().getEstudiante().getId();
+                        otroNombre = solicitud.getMentor().getEstudiante().getPrimerNombre()
+                                + " " + solicitud.getMentor().getEstudiante().getPrimerApellido();
+                    } else {
+                        otroId = solicitud.getEstudiante().getId();
+                        otroNombre = solicitud.getEstudiante().getPrimerNombre()
+                                + " " + solicitud.getEstudiante().getPrimerApellido();
+                    }
+
+                    return mensajeMentoriaRepository
+                            .findTopBySolicitudIdOrderByFechaEnvioDesc(solicitud.getId())
+                            .map(ultimo -> ChatResponse.builder()
+                                    .solicitudId(solicitud.getId())
+                                    .estado(solicitud.getEstado())
+                                    .otroUsuarioId(otroId)
+                                    .otroUsuarioNombre(otroNombre)
+                                    .ultimoMensaje(ultimo.getContenido())
+                                    .fechaUltimoMensaje(ultimo.getFechaEnvio())
+                                    .soySolicitante(soySolicitante)
+                                    .build())
+                            .orElseGet(() -> ChatResponse.builder()
+                                    .solicitudId(solicitud.getId())
+                                    .estado(solicitud.getEstado())
+                                    .otroUsuarioId(otroId)
+                                    .otroUsuarioNombre(otroNombre)
+                                    .ultimoMensaje(null)
+                                    .fechaUltimoMensaje(null)
+                                    .soySolicitante(soySolicitante)
+                                    .build());
+                })
                 .toList();
     }
 
