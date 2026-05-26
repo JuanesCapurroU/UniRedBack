@@ -1,6 +1,5 @@
 package com.unired.application.dto.response;
 
-import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Data;
 
@@ -13,6 +12,6 @@ public class ChatResponse {
     private Long otroUsuarioId;
     private String otroUsuarioNombre;
     private String ultimoMensaje;
-    private LocalDateTime fechaUltimoMensaje;
+    private String fechaUltimoMensaje;
     private boolean soySolicitante;
 }

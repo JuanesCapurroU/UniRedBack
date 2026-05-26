@@ -347,7 +347,7 @@ public class MentoriaService {
                                     .otroUsuarioId(otroId)
                                     .otroUsuarioNombre(otroNombre)
                                     .ultimoMensaje(ultimo.getContenido())
-                                    .fechaUltimoMensaje(ultimo.getFechaEnvio())
+                                    .fechaUltimoMensaje(ultimo.getFechaEnvio() != null ? ultimo.getFechaEnvio().toString() : null)
                                     .soySolicitante(soySolicitante)
                                     .build())
                             .orElseGet(() -> ChatResponse.builder()
