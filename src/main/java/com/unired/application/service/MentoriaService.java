@@ -231,9 +231,8 @@ public class MentoriaService {
     }
 
     @Transactional
-    public SolicitudResponse finalizarMentoria(Long solicitudId, Long estudianteId) {
-        SolicitudMentoria solicitud = solicitudMentoriaRepository.findByIdAndEstudianteId(solicitudId, estudianteId)
-                .orElseThrow(() -> new RecursoNoEncontradoException("Solicitud no encontrada"));
+    public SolicitudResponse finalizarMentoria(Long solicitudId, Long usuarioId) {
+        SolicitudMentoria solicitud = solicitarSiParticipa(solicitudId, usuarioId);
 
         if (!"CONFIRMADA".equals(solicitud.getEstado())) {
             throw new IllegalStateException("Solo puedes finalizar una mentoría confirmada");
@@ -385,8 +384,7 @@ public class MentoriaService {
 
     private SolicitudResponse toSolicitudResponse(SolicitudMentoria solicitud) {
         SolicitudResponse response = mentoriaMapper.toSolicitudResponse(solicitud);
-        boolean puedeCalificar = "CONFIRMADA".equals(solicitud.getEstado()) && solicitud.puedeCalificar();
-        response.setPuedeCalificar(puedeCalificar);
+        response.setPuedeCalificar(solicitud.puedeCalificar());
         response.setHorasRestantesCalificacion(0L);
         return response;
     }
