@@ -21,6 +21,7 @@ import com.unired.domain.repository.SolicitudMentoriaRepository;
 import com.unired.domain.repository.UsuarioRepository;
 import com.unired.exception.custom.MentorSinCapacidadException;
 import com.unired.exception.custom.RecursoNoEncontradoException;
+import lombok.extern.slf4j.Slf4j;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MentoriaService {
 
     private static final double PESO_MATERIA = 40.0;
@@ -42,6 +44,7 @@ public class MentoriaService {
     private final SolicitudMentoriaRepository solicitudMentoriaRepository;
     private final MensajeMentoriaRepository mensajeMentoriaRepository;
     private final MentoriaMapper mentoriaMapper;
+    private final NotificacionService notificacionService;
 
     @Transactional(readOnly = true)
     public List<MentorResponse> recomendarMentores(Long estudianteId) {
@@ -138,6 +141,20 @@ public class MentoriaService {
                 .build();
 
         SolicitudMentoria saved = solicitudMentoriaRepository.save(solicitud);
+
+        try {
+            notificacionService.crearNotificacion(
+                    mentor.getEstudiante().getId(),
+                    "MENTORIA",
+                    "Nueva solicitud de mentoría",
+                    estudiante.getPrimerNombre() + " " + estudiante.getPrimerApellido() + " te ha enviado una solicitud de mentoría.",
+                    "ALTA",
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("No se pudo crear notificación de solicitud de mentoría: {}", e.getMessage());
+        }
+
         return toSolicitudResponse(saved);
     }
 
@@ -153,6 +170,19 @@ public class MentoriaService {
         solicitud.confirmar();
         solicitudMentoriaRepository.save(solicitud);
         actualizarSesionesActivas(solicitud.getMentor().getId(), 1);
+
+        try {
+            notificacionService.crearNotificacion(
+                    solicitud.getEstudiante().getId(),
+                    "MENTORIA",
+                    "Mentoría confirmada",
+                    "Tu solicitud de mentoría fue aceptada. Ya puedes iniciar la sesión.",
+                    "ALTA",
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("No se pudo crear notificación de mentoría confirmada: {}", e.getMessage());
+        }
     }
 
     @Transactional
@@ -162,6 +192,19 @@ public class MentoriaService {
 
         solicitud.rechazar("Rechazada por mentor");
         solicitudMentoriaRepository.save(solicitud);
+
+        try {
+            notificacionService.crearNotificacion(
+                    solicitud.getEstudiante().getId(),
+                    "MENTORIA",
+                    "Solicitud de mentoría no aceptada",
+                    "El mentor no pudo aceptar tu solicitud en este momento. Puedes intentar con otro mentor.",
+                    "MEDIA",
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("No se pudo crear notificación de mentoría rechazada: {}", e.getMessage());
+        }
     }
 
     @Transactional
@@ -228,6 +271,24 @@ public class MentoriaService {
                 .build();
 
         MensajeMentoria saved = mensajeMentoriaRepository.save(mensaje);
+
+        try {
+            Long receptorId = solicitud.getEstudiante().getId().equals(usuarioId)
+                    ? solicitud.getMentor().getEstudiante().getId()
+                    : solicitud.getEstudiante().getId();
+
+            notificacionService.crearNotificacion(
+                    receptorId,
+                    "MENTORIA",
+                    "Nuevo mensaje en tu mentoría",
+                    saved.getEmisor().getPrimerNombre() + " te envió un mensaje.",
+                    "MEDIA",
+                    null
+            );
+        } catch (Exception e) {
+            log.warn("No se pudo crear notificación de mensaje de mentoría: {}", e.getMessage());
+        }
+
         return MensajeMentoriaResponse.builder()
                 .id(saved.getId())
                 .emisorId(usuarioId)

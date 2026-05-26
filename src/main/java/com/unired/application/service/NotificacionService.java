@@ -11,10 +11,8 @@ import com.unired.domain.repository.ConfiguracionNotificacionesRepository;
 import com.unired.domain.repository.NotificacionRepository;
 import com.unired.domain.repository.UsuarioRepository;
 import com.unired.exception.custom.RecursoNoEncontradoException;
-import com.unired.infrastructure.firebase.FcmService;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,17 +27,8 @@ public class NotificacionService {
     private final UsuarioRepository usuarioRepository;
     private final ConfiguracionNotificacionesRepository configuracionNotificacionesRepository;
     private final NotificacionMapper notificacionMapper;
-    private final FcmService fcmService;
 
-    public void enviarPushNotificacion(String fcmToken, String titulo, String cuerpo, Map<String, String> data) {
-        try {
-            fcmService.enviarNotificacion(fcmToken, titulo, cuerpo, data);
-        } catch (Exception ex) {
-            log.warn("No fue posible enviar push notification");
-        }
-    }
-
-    @Transactional
+    @Transactional(readOnly = true)
     public List<NotificacionResponse> obtenerNotificacionesPorUsuario(Long id) {
         List<Notificacion> notificaciones = notificacionRepository.findByUsuarioIdOrderByFechaDesc(id);
 
@@ -90,12 +79,33 @@ public class NotificacionService {
         notificacionRepository.deleteAll(toDelete);
     }
 
-    public void nuevaPublicacionInstitucional(Long publicacionId, List<String> fcmTokens) {
-        try {
-            fcmService.enviarMasivo(fcmTokens, "Nueva publicación institucional", "Hay una nueva publicación disponible");
-        } catch (Exception ex) {
-            log.warn("No fue posible enviar notificación masiva de publicación");
-        }
+    @Transactional
+    public void crearNotificacion(
+            Long usuarioId,
+            String tipo,
+            String titulo,
+            String mensaje,
+            String prioridad,
+            String urlAccion
+    ) {
+        Usuario usuario = getUsuario(usuarioId);
+        Notificacion notificacion = Notificacion.builder()
+                .usuario(usuario)
+                .tipo(tipo)
+                .titulo(titulo)
+                .mensaje(mensaje)
+                .prioridad(prioridad)
+                .urlAccion(urlAccion)
+                .leida(false)
+                .esActiva(true)
+                .build();
+        notificacionRepository.save(notificacion);
+        log.debug("Notificación creada para usuario {}: {}", usuarioId, titulo);
+    }
+
+    @Transactional(readOnly = true)
+    public Long contarNoLeidas(Long usuarioId) {
+        return notificacionRepository.countNoLeidas(usuarioId);
     }
 
     @Transactional
@@ -133,34 +143,6 @@ public class NotificacionService {
         }
 
         configuracionNotificacionesRepository.save(config);
-    }
-
-    @Transactional
-    public void crearNotificacion(
-            Long usuarioId,
-            String tipo,
-            String titulo,
-            String mensaje,
-            String prioridad,
-            String urlAccion
-    ) {
-        Usuario usuario = getUsuario(usuarioId);
-        Notificacion notificacion = Notificacion.builder()
-                .usuario(usuario)
-                .tipo(tipo)
-                .titulo(titulo)
-                .mensaje(mensaje)
-                .prioridad(prioridad)
-                .urlAccion(urlAccion)
-                .leida(false)
-                .esActiva(true)
-                .build();
-        notificacionRepository.save(notificacion);
-    }
-
-    @Transactional(readOnly = true)
-    public Long contarNoLeidas(Long usuarioId) {
-        return notificacionRepository.countNoLeidas(usuarioId);
     }
 
     private ConfiguracionNotificaciones crearConfiguracionDefault(Usuario usuario) {

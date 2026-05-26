@@ -6,7 +6,6 @@ import com.unired.application.dto.response.ActividadResponse;
 import com.unired.application.dto.response.InscripcionResponse;
 import com.unired.application.mapper.ActividadMapper;
 import com.unired.domain.model.Actividad;
-import com.unired.domain.model.ConfiguracionNotificaciones;
 import com.unired.domain.model.Estudiante;
 import com.unired.domain.model.Inscripcion;
 import com.unired.domain.model.Usuario;
@@ -135,16 +134,20 @@ public class ActividadService {
 
         Inscripcion saved = inscripcionRepository.save(inscripcion);
 
-        configuracionNotificacionesRepository.findByUsuarioId(estudianteId)
-                .filter(config -> Boolean.TRUE.equals(config.getRecibirActividades()))
-                .map(ConfiguracionNotificaciones::getFcmToken)
-                .filter(token -> token != null && !token.isBlank())
-                .ifPresent(token -> notificacionService.enviarPushNotificacion(
-                        token,
-                        "Inscripción confirmada",
-                        "Tu cupo en " + actividad.getNombre() + " ha sido reservado",
-                        java.util.Map.of("actividadId", String.valueOf(actividadId))
-                ));
+        boolean recibeActividades = configuracionNotificacionesRepository.findByUsuarioId(estudianteId)
+                .map(config -> Boolean.TRUE.equals(config.getRecibirActividades()))
+                .orElse(true);
+
+        if (recibeActividades) {
+            notificacionService.crearNotificacion(
+                    estudianteId,
+                    "ACTIVIDAD",
+                    "Inscripción confirmada",
+                    "Tu cupo en " + actividad.getNombre() + " ha sido reservado exitosamente.",
+                    "MEDIA",
+                    null
+            );
+        }
 
         return actividadMapper.toInscripcionResponse(saved);
     }
