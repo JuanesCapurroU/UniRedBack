@@ -68,6 +68,8 @@ public class EmailService {
             enviarEmailCodigoVerificacion(correo, codigo, tipo);
         } catch (Exception e) {
             log.error("Error al enviar email de verificación a {}: {}", correo, e.getMessage());
+            // Propagar para que el registro no responda exito sin correo y la transaccion se revierta.
+            throw new IllegalStateException("No se pudo enviar el correo de verificación. " + detalleErrorResend(e));
         }
 
         return codigo;
@@ -97,6 +99,14 @@ public class EmailService {
         codigo.incrementarIntento();
         codigoVerificacionRepository.save(codigo);
         return false;
+    }
+
+    private String detalleErrorResend(Exception e) {
+        if (e instanceof org.springframework.web.client.HttpStatusCodeException http) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\s*:\s*\"([^\"]+)\"").matcher(http.getResponseBodyAsString());
+            return m.find() ? m.group(1) : "Resend respondió " + http.getStatusCode();
+        }
+        return e.getMessage() == null ? "" : e.getMessage();
     }
 
     private String generarCodigo() {
