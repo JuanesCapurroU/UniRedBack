@@ -42,7 +42,7 @@ public class ActividadController extends BaseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Listado exitoso")
     })
     @GetMapping
-    @PreAuthorize("hasRole('ESTUDIANTE')")
+    @PreAuthorize("hasAnyRole('ESTUDIANTE', 'ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<Page<ActividadResponse>>> listarActividades(
             @RequestParam(required = false) CategoriaActividad categoria,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
@@ -67,7 +67,7 @@ public class ActividadController extends BaseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Actividad encontrada")
     })
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ESTUDIANTE')")
+    @PreAuthorize("hasAnyRole('ESTUDIANTE', 'ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<ActividadResponse>> obtenerActividad(
             @PathVariable Long id,
             @AuthenticationPrincipal AppUserDetails user
