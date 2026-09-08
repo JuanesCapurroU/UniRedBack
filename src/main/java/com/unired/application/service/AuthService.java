@@ -246,6 +246,28 @@ public class AuthService {
         emailService.generarCodigoVerificacion(correo, TipoCodigo.REGISTRO);
     }
 
+    @Transactional
+    public void solicitarRecuperacionPassword(String correo) {
+        validateDomain(correo);
+        // Respuesta generica: no revelar si el correo existe.
+        usuarioRepository.findByCorreo(correo)
+                .ifPresent(u -> emailService.generarCodigoVerificacion(correo, TipoCodigo.RECUPERAR_PASSWORD));
+    }
+
+    @Transactional
+    public void restablecerPassword(String correo, String codigo, String passwordNueva) {
+        validateDomain(correo);
+        if (!emailService.verificarCodigo(correo, codigo, TipoCodigo.RECUPERAR_PASSWORD)) {
+            throw new BadCredentialsException("Código inválido o expirado");
+        }
+        Usuario usuario = usuarioRepository.findByCorreo(correo)
+                .orElseThrow(() -> new BadCredentialsException("Código inválido o expirado"));
+        usuario.setPasswordHash(passwordEncoder.encode(passwordNueva));
+        usuario.setIntentosFallidos(0);
+        usuario.setBloqueadoHasta(null);
+        usuarioRepository.save(usuario);
+    }
+
     public String makeFakeToken(String correo) {
         throw new UnsupportedOperationException("makeFakeToken no está permitido");
     }

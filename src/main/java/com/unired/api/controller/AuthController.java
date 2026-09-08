@@ -2,6 +2,8 @@ package com.unired.api.controller;
 
 import com.unired.application.dto.request.FcmTokenRequest;
 import com.unired.application.dto.request.LoginRequest;
+import com.unired.application.dto.request.RecuperarPasswordRequest;
+import com.unired.application.dto.request.RestablecerPasswordRequest;
 import com.unired.application.dto.request.RefreshTokenRequest;
 import com.unired.application.dto.request.RegistroRequest;
 import com.unired.application.dto.request.VerificarCodigoRequest;
@@ -105,5 +107,18 @@ public class AuthController extends BaseController {
     public ResponseEntity<ApiResponse<Void>> reenviarCodigo(@Valid @RequestBody LoginRequest request) {
         authService.reenviarCodigo(request.getCorreo());
         return ok("Código de verificación reenviado");
+    }
+    @Operation(summary = "Solicitar código para recuperar contraseña")
+    @PostMapping("/recuperar-password")
+    public ResponseEntity<ApiResponse<Void>> recuperarPassword(@Valid @RequestBody RecuperarPasswordRequest request) {
+        authService.solicitarRecuperacionPassword(request.getCorreo());
+        return ok("Si el correo está registrado, recibirás un código de recuperación");
+    }
+
+    @Operation(summary = "Restablecer contraseña con el código recibido")
+    @PostMapping("/restablecer-password")
+    public ResponseEntity<ApiResponse<Void>> restablecerPassword(@Valid @RequestBody RestablecerPasswordRequest request) {
+        authService.restablecerPassword(request.getCorreo(), request.getCodigo(), request.getPasswordNueva());
+        return ok("Contraseña actualizada. Ya puedes iniciar sesión");
     }
 }
