@@ -41,12 +41,14 @@ public interface ActividadRepository extends JpaRepository<Actividad, Long> {
             select a from Actividad a
             where a.activa = true
               and (:categoria is null or a.categoria = :categoria)
-              and (:fecha is null or FUNCTION('date', a.fechaHora) = :fecha)
+              and (:desde is null or a.fechaHora >= :desde)
+              and (:hasta is null or a.fechaHora < :hasta)
               and (:recordatorioWa is null or a.recordatorioWa = :recordatorioWa)
             """)
     Page<Actividad> findFiltered(
             @Param("categoria") CategoriaActividad categoria,
-            @Param("fecha") LocalDate fecha,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta,
             @Param("recordatorioWa") Boolean recordatorioWa,
             Pageable pageable
     );

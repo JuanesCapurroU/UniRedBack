@@ -45,7 +45,8 @@ public class ActividadService {
     public Page<ActividadResponse> listarActividades(FiltroActividadDTO filtro, Long estudianteId) {
         Page<Actividad> page = actividadRepository.findFiltered(
                 filtro.getCategoria(),
-                filtro.getFecha(),
+                filtro.getFecha() == null ? null : filtro.getFecha().atStartOfDay(),
+                filtro.getFecha() == null ? null : filtro.getFecha().plusDays(1).atStartOfDay(),
                 filtro.getRecordatorioWa(),
                 PageRequest.of(filtro.getPage(), filtro.getSize())
         );
