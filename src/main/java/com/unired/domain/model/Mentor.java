@@ -59,6 +59,21 @@ public class Mentor {
     @Column(nullable = false)
     private Boolean activo = false;
 
+    // Requisitos declarados en la postulacion; el administrador los verifica antes de aprobar.
+    @Column(name = "promedio_academico")
+    private Double promedioAcademico;
+
+    @Builder.Default
+    @Column(name = "sin_materias_perdidas", nullable = false)
+    private Boolean sinMateriasPerdidas = false;
+
+    @Builder.Default
+    @Column(name = "sin_procesos_disciplinarios", nullable = false)
+    private Boolean sinProcesosDisciplinarios = false;
+
+    @Column(name = "horas_semanales")
+    private Integer horasSemanales;
+
     @Column(name = "fecha_solicitud", nullable = false)
     private LocalDateTime fechaSolicitud;
 

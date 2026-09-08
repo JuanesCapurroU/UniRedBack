@@ -100,6 +100,10 @@ public class MentoriaService {
         mentor.setMaterias(dto.getMaterias());
         mentor.setDisponibilidad(dto.getDisponibilidad());
         mentor.setBio(dto.getBio());
+        mentor.setPromedioAcademico(dto.getPromedioAcademico());
+        mentor.setSinMateriasPerdidas(Boolean.TRUE.equals(dto.getSinMateriasPerdidas()));
+        mentor.setSinProcesosDisciplinarios(Boolean.TRUE.equals(dto.getSinProcesosDisciplinarios()));
+        mentor.setHorasSemanales(dto.getHorasSemanales());
         mentor.setActivo(false);
 
         Mentor saved = mentorRepository.save(mentor);

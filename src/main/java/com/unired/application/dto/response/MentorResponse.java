@@ -16,4 +16,9 @@ public class MentorResponse {
     private String disponibilidad;
     private Double porcentajeCompatibilidad;
     private String numeroWhatsapp;
+    private String bio;
+    private Double promedioAcademico;
+    private Boolean sinMateriasPerdidas;
+    private Boolean sinProcesosDisciplinarios;
+    private Integer horasSemanales;
 }
