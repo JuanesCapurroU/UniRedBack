@@ -232,7 +232,8 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    // No puede ser readOnly: generarCodigoVerificacion guarda el codigo nuevo.
+    @Transactional
     public void reenviarCodigo(String correo) {
         validateDomain(correo);
 

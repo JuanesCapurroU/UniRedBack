@@ -17,7 +17,11 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @SuperBuilder
 @EqualsAndHashCode(callSuper = true)
-public class Administrador extends Usuario {
+// Un administrador de UniRed siempre nace de promover a un estudiante (ver
+// UsuarioRepository.promoteToAdmin), asi que hereda de Estudiante. De lo contrario, al
+// cambiar el dtype se rompen las mentorias, inscripciones y demas datos que lo referencian
+// como Estudiante. El rol se resuelve por "instanceof Administrador", que se evalua primero.
+public class Administrador extends Estudiante {
 
     @Builder.Default
     @Column(name = "nivel_acceso", length = 30)
