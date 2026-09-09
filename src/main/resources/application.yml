@@ -45,6 +45,7 @@ spring:
 resend:
   api-key: ${RESEND_API_KEY:}
   from-email: ${RESEND_FROM_EMAIL:UniRed <noreply@resend.dev>}
+  redirect-to: ${RESEND_REDIRECT_TO:}
 
 jwt:
   secret: ${JWT_SECRET}

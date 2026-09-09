@@ -37,6 +37,11 @@ public class EmailService {
     @Value("${resend.from-email}")
     private String fromEmail;
 
+    // Mientras Resend no tenga un dominio verificado solo entrega al dueno de la cuenta.
+    // Con esto todos los codigos llegan a esa direccion, indicando a que cuenta pertenecen.
+    @Value("${resend.redirect-to:}")
+    private String redirectTo;
+
     @Transactional
     public String generarCodigoVerificacion(String correo, TipoCodigo tipo) {
         Optional<CodigoVerificacion> existente = codigoVerificacionRepository.findTopByCorreoAndTipoOrderByCreatedAtDesc(correo, tipo);
@@ -130,13 +135,20 @@ public class EmailService {
             cuerpoHtml = buildHtmlRecuperacion(codigo);
         }
 
+        String destino = correo;
+        if (redirectTo != null && !redirectTo.isBlank() && !redirectTo.equalsIgnoreCase(correo)) {
+            destino = redirectTo.trim();
+            asunto = asunto + " (cuenta: " + correo + ")";
+            cuerpoHtml = conAvisoDeCuenta(cuerpoHtml, correo);
+        }
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(resendApiKey);
 
         Map<String, Object> body = Map.of(
                 "from", fromEmail,
-                "to", List.of(correo),
+                "to", List.of(destino),
                 "subject", asunto,
                 "html", cuerpoHtml
         );
@@ -145,10 +157,27 @@ public class EmailService {
         ResponseEntity<String> response = restTemplate.postForEntity(RESEND_API_URL, request, String.class);
 
         if (response.getStatusCode().is2xxSuccessful()) {
-            log.info("Email de verificación enviado a {}", correo);
+            log.info("Email de verificación de {} enviado a {}", correo, destino);
         } else {
             throw new RuntimeException("Resend API respondió con estado: " + response.getStatusCode());
         }
+    }
+
+    private String conAvisoDeCuenta(String html, String correoReal) {
+        String aviso = """
+                <div style="max-width: 500px; margin: 0 auto 14px; background-color: #fff3b0; border: 1px solid #b7791f; border-radius: 8px; padding: 16px; font-family: Arial, sans-serif; color: #7a5200;">
+                    <p style="margin: 0 0 6px 0; font-size: 15px;"><strong>Correo redirigido</strong></p>
+                    <p style="margin: 0; font-size: 14px; line-height: 1.5;">Este código pertenece a la cuenta <strong>%s</strong>.<br>
+                    Llega aquí porque UniRed aún no tiene un dominio verificado en Resend y solo puede entregar correos a esta dirección.</p>
+                </div>
+                """.formatted(correoReal);
+
+        int inicio = html.indexOf("<body");
+        if (inicio < 0) {
+            return aviso + html;
+        }
+        int fin = html.indexOf('>', inicio) + 1;
+        return html.substring(0, fin) + aviso + html.substring(fin);
     }
 
     private String buildHtmlRegistro(String codigo) {
