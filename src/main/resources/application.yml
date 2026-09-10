@@ -17,9 +17,11 @@ spring:
       jdbc-url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0&preparedStatementCacheQueries=0&preparedStatementCacheSizeMiB=0&preferQueryMode=simple
       username: postgres.ujfrazuolkhggzjgvogu
       password: ${DB_PASSWORD}
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 5
+      minimum-idle: 0
       connection-timeout: 20000
+      idle-timeout: 30000
+      max-lifetime: 600000
       data-source-properties:
         prepareThreshold: 0
         preparedStatementCacheQueries: 0

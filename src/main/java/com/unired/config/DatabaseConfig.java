@@ -30,9 +30,13 @@ public class DatabaseConfig {
         hikariConfig.setJdbcUrl(JDBC_URL);
         hikariConfig.setUsername(DB_USER);
         hikariConfig.setPassword(dbPassword);
-        hikariConfig.setMaximumPoolSize(20);
-        hikariConfig.setMinimumIdle(5);
+        // Supabase gratuito comparte un pool pequeno entre TODAS las instancias (Render + local).
+        // 20 conexiones por instancia lo agotaban; con esto sobra para el trafico real.
+        hikariConfig.setMaximumPoolSize(5);
+        hikariConfig.setMinimumIdle(0);
         hikariConfig.setConnectionTimeout(20000);
+        hikariConfig.setIdleTimeout(30000);
+        hikariConfig.setMaxLifetime(600000);
         hikariConfig.addDataSourceProperty("prepareThreshold", "0");
         hikariConfig.addDataSourceProperty("preparedStatementCacheQueries", "0");
         hikariConfig.addDataSourceProperty("preparedStatementCacheSizeMiB", "0");
