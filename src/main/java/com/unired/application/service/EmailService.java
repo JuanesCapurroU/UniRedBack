@@ -149,20 +149,28 @@ public class EmailService {
             cuerpoHtml = buildHtmlRecuperacion(codigo);
         }
 
+        // 1) SMTP (Gmail): entrega al destinatario real. Render bloquea el SMTP saliente,
+        //    asi que si falla se reintenta por la API HTTP de Resend.
+        if (usarSmtp()) {
+            try {
+                enviarPorSmtp(correo, asunto, cuerpoHtml);
+                log.info("Email de verificación enviado a {} vía SMTP", correo);
+                return;
+            } catch (Exception e) {
+                log.warn("SMTP no disponible ({}). Se reintenta por Resend.", e.getMessage());
+            }
+        }
+
+        // 2) Resend. Sin dominio verificado solo entrega al dueno de la cuenta, por eso
+        //    RESEND_REDIRECT_TO desvia el codigo indicando a que cuenta pertenece.
         String destino = correo;
-        // La redireccion solo tiene sentido con Resend sin dominio verificado; Gmail envia a cualquiera.
-        if (!usarSmtp() && redirectTo != null && !redirectTo.isBlank() && !redirectTo.equalsIgnoreCase(correo)) {
+        if (redirectTo != null && !redirectTo.isBlank() && !redirectTo.equalsIgnoreCase(correo)) {
             destino = redirectTo.trim();
             asunto = asunto + " (cuenta: " + correo + ")";
             cuerpoHtml = conAvisoDeCuenta(cuerpoHtml, correo);
         }
-
-        if (usarSmtp()) {
-            enviarPorSmtp(destino, asunto, cuerpoHtml);
-        } else {
-            enviarPorResend(destino, asunto, cuerpoHtml);
-        }
-        log.info("Email de verificación de {} enviado a {} vía {}", correo, destino, usarSmtp() ? "SMTP" : "Resend");
+        enviarPorResend(destino, asunto, cuerpoHtml);
+        log.info("Email de verificación de {} enviado a {} vía Resend", correo, destino);
     }
 
     /** Gmail SMTP si hay usuario configurado; si no, se cae a Resend. */
