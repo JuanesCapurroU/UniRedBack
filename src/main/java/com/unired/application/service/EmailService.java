@@ -31,6 +31,7 @@ public class EmailService {
     private static final int MAX_INTENTOS = 3;
     private static final int MINUTOS_EXPIRACION = 15;
     private static final String RESEND_API_URL = "https://api.resend.com/emails";
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
     private final RestTemplate restTemplate;
     private final CodigoVerificacionRepository codigoVerificacionRepository;
@@ -55,6 +56,12 @@ public class EmailService {
 
     @Value("${mail.provider:smtp}")
     private String mailProvider;
+
+    @Value("${brevo.api-key:}")
+    private String brevoApiKey;
+
+    @Value("${brevo.from-email:unired.uniminuto@gmail.com}")
+    private String brevoFromEmail;
 
     @Transactional
     public String generarCodigoVerificacion(String correo, TipoCodigo tipo) {
@@ -149,8 +156,18 @@ public class EmailService {
             cuerpoHtml = buildHtmlRecuperacion(codigo);
         }
 
-        // 1) SMTP (Gmail): entrega al destinatario real. Render bloquea el SMTP saliente,
-        //    asi que si falla se reintenta por la API HTTP de Resend.
+        // 1) Brevo por HTTPS: funciona en cualquier hosting y entrega al destinatario real.
+        if (brevoApiKey != null && !brevoApiKey.isBlank()) {
+            try {
+                enviarPorBrevo(correo, asunto, cuerpoHtml);
+                log.info("Email de verificación enviado a {} vía Brevo", correo);
+                return;
+            } catch (Exception e) {
+                log.warn("Brevo falló ({}). Se intenta otro proveedor.", e.getMessage());
+            }
+        }
+
+        // 2) SMTP (Gmail): solo sirve donde el hosting permita trafico SMTP saliente.
         if (usarSmtp()) {
             try {
                 enviarPorSmtp(correo, asunto, cuerpoHtml);
@@ -161,7 +178,7 @@ public class EmailService {
             }
         }
 
-        // 2) Resend. Sin dominio verificado solo entrega al dueno de la cuenta, por eso
+        // 3) Resend. Sin dominio verificado solo entrega al dueno de la cuenta, por eso
         //    RESEND_REDIRECT_TO desvia el codigo indicando a que cuenta pertenece.
         String destino = correo;
         if (redirectTo != null && !redirectTo.isBlank() && !redirectTo.equalsIgnoreCase(correo)) {
@@ -192,6 +209,26 @@ public class EmailService {
             sender.send(mensaje);
         } catch (Exception e) {
             throw new IllegalStateException("SMTP: " + e.getMessage(), e);
+        }
+    }
+
+    private void enviarPorBrevo(String destino, String asunto, String cuerpoHtml) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", brevoApiKey);
+
+        Map<String, Object> body = Map.of(
+                "sender", Map.of("name", fromName, "email", brevoFromEmail),
+                "to", List.of(Map.of("email", destino)),
+                "subject", asunto,
+                "htmlContent", cuerpoHtml
+        );
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                BREVO_API_URL, new HttpEntity<>(body, headers), String.class);
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Brevo respondió con estado: " + response.getStatusCode());
         }
     }
 

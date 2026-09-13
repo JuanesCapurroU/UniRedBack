@@ -65,6 +65,10 @@ mail:
   provider: ${MAIL_PROVIDER:smtp}
   from-name: UniRed UNIMINUTO
 
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  from-email: ${BREVO_FROM_EMAIL:unired.uniminuto@gmail.com}
+
 resend:
   api-key: ${RESEND_API_KEY:}
   from-email: ${RESEND_FROM_EMAIL:UniRed <noreply@resend.dev>}
