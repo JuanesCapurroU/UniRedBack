@@ -47,6 +47,7 @@ public class ActividadController extends BaseController {
             @RequestParam(required = false) CategoriaActividad categoria,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             @RequestParam(required = false) Boolean recordatorioWa,
+            @RequestParam(defaultValue = "false") Boolean incluirPasadas,
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "20") Integer size,
             @AuthenticationPrincipal AppUserDetails user
@@ -55,6 +56,7 @@ public class ActividadController extends BaseController {
         filtro.setCategoria(categoria);
         filtro.setFecha(fecha);
         filtro.setRecordatorioWa(recordatorioWa);
+        filtro.setIncluirPasadas(incluirPasadas);
         filtro.setPage(page);
         filtro.setSize(size);
 

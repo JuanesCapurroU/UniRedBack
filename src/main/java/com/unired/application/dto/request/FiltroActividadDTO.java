@@ -13,6 +13,9 @@ public class FiltroActividadDTO {
     private LocalDate fecha;
     private Boolean recordatorioWa;
 
+    /** Por defecto solo se listan las actividades que aun no han pasado. */
+    private Boolean incluirPasadas = false;
+
     @Min(0)
     private Integer page = 0;
 

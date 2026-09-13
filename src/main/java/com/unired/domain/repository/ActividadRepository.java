@@ -44,6 +44,7 @@ public interface ActividadRepository extends JpaRepository<Actividad, Long> {
               and (:desde is null or a.fechaHora >= :desde)
               and (:hasta is null or a.fechaHora < :hasta)
               and (:recordatorioWa is null or a.recordatorioWa = :recordatorioWa)
+            order by a.fechaHora asc
             """)
     Page<Actividad> findFiltered(
             @Param("categoria") CategoriaActividad categoria,
