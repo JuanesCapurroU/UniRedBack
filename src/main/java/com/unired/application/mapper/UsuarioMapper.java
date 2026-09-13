@@ -13,6 +13,7 @@ import org.mapstruct.Mapping;
 public interface UsuarioMapper {
 
     @Mapping(target = "rol", expression = "java(resolveRole(usuario))")
+    @Mapping(target = "nivelAcceso", expression = "java(usuario instanceof com.unired.domain.model.Administrador a ? a.getNivelAcceso() : null)")
     @Mapping(target = "programaAcademico", expression = "java(usuario instanceof com.unired.domain.model.Estudiante e ? e.getProgramaAcademico() : null)")
     @Mapping(target = "semestre", expression = "java(usuario instanceof com.unired.domain.model.Estudiante e ? e.getSemestre() : null)")
     UsuarioBasicoResponse toBasicoResponse(Usuario usuario);

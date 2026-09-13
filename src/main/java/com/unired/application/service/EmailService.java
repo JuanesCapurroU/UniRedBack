@@ -6,7 +6,11 @@ import com.unired.domain.repository.CodigoVerificacionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.mail.internet.MimeMessage;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.*;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -30,6 +34,7 @@ public class EmailService {
 
     private final RestTemplate restTemplate;
     private final CodigoVerificacionRepository codigoVerificacionRepository;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
     @Value("${resend.api-key}")
     private String resendApiKey;
@@ -41,6 +46,15 @@ public class EmailService {
     // Con esto todos los codigos llegan a esa direccion, indicando a que cuenta pertenecen.
     @Value("${resend.redirect-to:}")
     private String redirectTo;
+
+    @Value("${spring.mail.username:}")
+    private String smtpUsername;
+
+    @Value("${mail.from-name:UniRed UNIMINUTO}")
+    private String fromName;
+
+    @Value("${mail.provider:smtp}")
+    private String mailProvider;
 
     @Transactional
     public String generarCodigoVerificacion(String correo, TipoCodigo tipo) {
@@ -136,12 +150,44 @@ public class EmailService {
         }
 
         String destino = correo;
-        if (redirectTo != null && !redirectTo.isBlank() && !redirectTo.equalsIgnoreCase(correo)) {
+        // La redireccion solo tiene sentido con Resend sin dominio verificado; Gmail envia a cualquiera.
+        if (!usarSmtp() && redirectTo != null && !redirectTo.isBlank() && !redirectTo.equalsIgnoreCase(correo)) {
             destino = redirectTo.trim();
             asunto = asunto + " (cuenta: " + correo + ")";
             cuerpoHtml = conAvisoDeCuenta(cuerpoHtml, correo);
         }
 
+        if (usarSmtp()) {
+            enviarPorSmtp(destino, asunto, cuerpoHtml);
+        } else {
+            enviarPorResend(destino, asunto, cuerpoHtml);
+        }
+        log.info("Email de verificación de {} enviado a {} vía {}", correo, destino, usarSmtp() ? "SMTP" : "Resend");
+    }
+
+    /** Gmail SMTP si hay usuario configurado; si no, se cae a Resend. */
+    private boolean usarSmtp() {
+        return !"resend".equalsIgnoreCase(mailProvider)
+                && smtpUsername != null && !smtpUsername.isBlank()
+                && mailSenderProvider.getIfAvailable() != null;
+    }
+
+    private void enviarPorSmtp(String destino, String asunto, String cuerpoHtml) {
+        try {
+            JavaMailSender sender = mailSenderProvider.getObject();
+            MimeMessage mensaje = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mensaje, "UTF-8");
+            helper.setFrom(smtpUsername, fromName);
+            helper.setTo(destino);
+            helper.setSubject(asunto);
+            helper.setText(cuerpoHtml, true);
+            sender.send(mensaje);
+        } catch (Exception e) {
+            throw new IllegalStateException("SMTP: " + e.getMessage(), e);
+        }
+    }
+
+    private void enviarPorResend(String destino, String asunto, String cuerpoHtml) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(resendApiKey);
@@ -156,9 +202,7 @@ public class EmailService {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         ResponseEntity<String> response = restTemplate.postForEntity(RESEND_API_URL, request, String.class);
 
-        if (response.getStatusCode().is2xxSuccessful()) {
-            log.info("Email de verificación de {} enviado a {}", correo, destino);
-        } else {
+        if (!response.getStatusCode().is2xxSuccessful()) {
             throw new RuntimeException("Resend API respondió con estado: " + response.getStatusCode());
         }
     }

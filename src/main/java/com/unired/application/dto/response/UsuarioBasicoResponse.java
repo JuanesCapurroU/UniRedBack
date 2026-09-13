@@ -12,6 +12,8 @@ public class UsuarioBasicoResponse {
     private String primerApellido;
     private String correo;
     private String rol;
+    /** ADMIN o SUPER_ADMIN; null para estudiantes. */
+    private String nivelAcceso;
     private String programaAcademico;
     private Integer semestre;
 }

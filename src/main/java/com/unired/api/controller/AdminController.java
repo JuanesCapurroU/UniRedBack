@@ -8,6 +8,7 @@ import com.unired.application.dto.response.EstudianteResponse;
 import com.unired.application.dto.response.MentorResponse;
 import com.unired.application.dto.response.UsuarioAdminResponse;
 import com.unired.application.service.AdminService;
+import com.unired.infrastructure.security.AppUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -86,8 +88,11 @@ public class AdminController extends BaseController {
 
     @Operation(summary = "Promover usuario a administrador")
     @PutMapping("/usuarios/{id}/promover-admin")
-    public ResponseEntity<ApiResponse<UsuarioAdminResponse>> promoverAAdmin(@PathVariable Long id) {
-        return ok("Usuario promovido a administrador", adminService.promoverAAdministrador(id));
+    public ResponseEntity<ApiResponse<UsuarioAdminResponse>> promoverAAdmin(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AppUserDetails actor
+    ) {
+        return ok("Usuario promovido a administrador", adminService.promoverAAdministrador(id, actor.getId()));
     }
 
     @Operation(summary = "Listar mentores pendientes")

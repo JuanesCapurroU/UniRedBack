@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -187,7 +188,13 @@ public class AdminService {
     }
 
     @Transactional
-    public UsuarioAdminResponse promoverAAdministrador(Long usuarioId) {
+    public UsuarioAdminResponse promoverAAdministrador(Long usuarioId, Long actorId) {
+        // Solo el super administrador puede crear otros administradores.
+        if (!(getUsuario(actorId) instanceof Administrador actor)
+                || !"SUPER_ADMIN".equalsIgnoreCase(actor.getNivelAcceso())) {
+            throw new AccessDeniedException("Solo el super administrador puede promover administradores");
+        }
+
         Usuario usuario = getUsuario(usuarioId);
         if (usuario instanceof Administrador) {
             return toAdminResponse(usuario);

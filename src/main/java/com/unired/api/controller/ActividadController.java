@@ -80,7 +80,7 @@ public class ActividadController extends BaseController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Actividad creada")
     })
     @PostMapping
-    @PreAuthorize("hasAnyRole('ESTUDIANTE', 'ADMINISTRADOR')")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<ApiResponse<ActividadResponse>> crearActividad(
             @Valid @RequestBody ActividadRequest request,
             @AuthenticationPrincipal AppUserDetails user

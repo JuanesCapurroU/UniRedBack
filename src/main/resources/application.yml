@@ -36,6 +36,22 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         default_schema: public
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+
   flyway:
     enabled: true
     url: jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0&preparedStatementCacheQueries=0&preparedStatementCacheSizeMiB=0&preferQueryMode=simple
@@ -43,6 +59,11 @@ spring:
     password: ${DB_PASSWORD}
     locations: classpath:db/migration
     baseline-on-migrate: true
+
+mail:
+  # Proveedor de envio: smtp (Gmail) o resend. Si SMTP_USERNAME esta vacio se usa Resend.
+  provider: ${MAIL_PROVIDER:smtp}
+  from-name: UniRed UNIMINUTO
 
 resend:
   api-key: ${RESEND_API_KEY:}

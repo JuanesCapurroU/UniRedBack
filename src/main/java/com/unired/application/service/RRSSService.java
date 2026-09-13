@@ -1,8 +1,10 @@
 package com.unired.application.service;
 
+import com.unired.application.dto.request.PublicacionRequest;
 import com.unired.application.dto.response.PublicacionRRSSResponse;
 import com.unired.application.mapper.RRSSMapper;
 import com.unired.domain.model.PublicacionRRSS;
+import com.unired.exception.custom.RecursoNoEncontradoException;
 import com.unired.domain.repository.PublicacionRRSSRepository;
 import com.unired.infrastructure.external.RedSocialAdapter;
 import java.time.LocalDateTime;
@@ -51,6 +53,39 @@ public class RRSSService {
                 .toList();
 
         return new PageImpl<>(content, PageRequest.of(currentPage, pageSize), publicaciones.size());
+    }
+
+    /** Red social ficticia para las publicaciones propias de UniRed. */
+    public static final String RED_UNIRED = "UNIRED";
+
+    @Transactional
+    public PublicacionRRSSResponse publicar(PublicacionRequest request) {
+        PublicacionRRSS publicacion = PublicacionRRSS.builder()
+                .redSocial(RED_UNIRED)
+                .perfilNombre(request.getPerfilNombre() == null || request.getPerfilNombre().isBlank()
+                        ? "UniRed UNIMINUTO" : request.getPerfilNombre())
+                .contenidoTexto(request.getContenidoTexto())
+                .imagenUrl(request.getImagenUrl())
+                .urlPublicacion(request.getUrlPublicacion())
+                .hashtags(request.getHashtags())
+                .likes(0)
+                .comentarios(0)
+                .fechaPublicacion(LocalDateTime.now())
+                .fechaCache(LocalDateTime.now())
+                .sincronizada(false)
+                .build();
+
+        return rrssMapper.toResponse(publicacionRRSSRepository.save(publicacion));
+    }
+
+    @Transactional
+    public void eliminarPublicacion(Long id) {
+        PublicacionRRSS publicacion = publicacionRRSSRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Publicación no encontrada"));
+        if (!RED_UNIRED.equals(publicacion.getRedSocial())) {
+            throw new IllegalStateException("Solo se pueden eliminar publicaciones propias de UniRed");
+        }
+        publicacionRRSSRepository.delete(publicacion);
     }
 
     @Transactional
