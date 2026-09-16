@@ -171,6 +171,7 @@ public class AuthService {
                 .numeroDocumento(request.getNumeroDocumento())
                 .primerNombre(request.getPrimerNombre())
                 .primerApellido(request.getPrimerApellido())
+                .tipoUsuario(request.esDocente() ? "DOCENTE" : "ESTUDIANTE")
                 .programaAcademico(request.getProgramaAcademico())
                 .semestre(request.getSemestre())
                 .sede("Zipaquirá")

@@ -13,6 +13,7 @@ public class PerfilResponse {
     private String correo;
     private String telefono;
     private String fotoUrl;
+    private String tipoUsuario;
     private String programaAcademico;
     private Integer semestre;
     private String sede;

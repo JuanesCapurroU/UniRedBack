@@ -1,5 +1,6 @@
 package com.unired.application.dto.request;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -36,13 +37,29 @@ public class RegistroRequest {
     @NotBlank(message = "El primer apellido es obligatorio")
     private String primerApellido;
 
-    @NotBlank(message = "El programa academico es obligatorio")
+    /** ESTUDIANTE (por defecto) o DOCENTE para profesores y administrativos. */
+    @Pattern(regexp = "^(ESTUDIANTE|DOCENTE)$", message = "El tipo de usuario debe ser ESTUDIANTE o DOCENTE")
+    private String tipoUsuario = "ESTUDIANTE";
+
     private String programaAcademico;
 
-    @NotNull(message = "El semestre es obligatorio")
     @Min(value = 1, message = "El semestre debe ser valido")
     @Max(value = 20, message = "El semestre debe ser valido")
     private Integer semestre;
+
+    public boolean esDocente() {
+        return "DOCENTE".equalsIgnoreCase(tipoUsuario);
+    }
+
+    @AssertTrue(message = "El programa academico es obligatorio para estudiantes")
+    public boolean isProgramaAcademicoPresente() {
+        return esDocente() || (programaAcademico != null && !programaAcademico.isBlank());
+    }
+
+    @AssertTrue(message = "El semestre es obligatorio para estudiantes")
+    public boolean isSemestrePresente() {
+        return esDocente() || semestre != null;
+    }
 
     @NotBlank(message = "La sede es obligatoria")
     @Pattern(regexp = "^Zipaquir[aá]$", message = "La sede debe ser Zipaquira")

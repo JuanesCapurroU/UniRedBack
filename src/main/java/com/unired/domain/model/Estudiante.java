@@ -28,6 +28,11 @@ public class Estudiante extends Usuario {
     @Column(name = "correo_institucional", length = 120)
     private String correoInstitucional;
 
+    /** ESTUDIANTE, o DOCENTE para profesores y personal administrativo. */
+    @Builder.Default
+    @Column(name = "tipo_usuario", length = 20, nullable = false)
+    private String tipoUsuario = "ESTUDIANTE";
+
     @Column(name = "programa_academico", length = 120)
     private String programaAcademico;
 

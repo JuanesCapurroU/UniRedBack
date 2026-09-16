@@ -14,6 +14,8 @@ public class UsuarioBasicoResponse {
     private String rol;
     /** ADMIN o SUPER_ADMIN; null para estudiantes. */
     private String nivelAcceso;
+    /** ESTUDIANTE o DOCENTE. */
+    private String tipoUsuario;
     private String programaAcademico;
     private Integer semestre;
 }
