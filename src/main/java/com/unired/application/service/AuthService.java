@@ -187,6 +187,12 @@ public class AuthService {
 
         usuarioRepository.save(estudiante);
 
+        // Los docentes con correo @uniminuto.edu entran directamente como administradores.
+        // No como SUPER_ADMIN: ese sigue siendo uno solo y es el unico que promueve a otros.
+        if (esDocenteInstitucional(request)) {
+            usuarioRepository.promoteToAdmin(estudiante.getId());
+        }
+
         emailService.generarCodigoVerificacion(request.getCorreo(), TipoCodigo.REGISTRO);
 
         return RegistroResponse.builder()
@@ -194,6 +200,12 @@ public class AuthService {
                 .correo(request.getCorreo())
                 .verificado(false)
                 .build();
+    }
+
+    /** Docente declarado en el registro Y con correo del dominio docente, no el de estudiantes. */
+    private boolean esDocenteInstitucional(RegistroRequest request) {
+        String correo = request.getCorreo() == null ? "" : request.getCorreo().trim().toLowerCase();
+        return request.esDocente() && correo.endsWith(SecurityConstants.DOCENTE_DOMAIN_SUFFIX);
     }
 
     @Transactional
