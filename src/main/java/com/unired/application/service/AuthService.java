@@ -275,7 +275,7 @@ public class AuthService {
 
     private void validateDomain(String correo) {
         if (!DOMAIN_PATTERN.matcher(correo).matches()) {
-            throw new DominioNoPermitidoException("Solo se permiten correos @uniminuto.edu.co");
+            throw new DominioNoPermitidoException("Solo se permiten correos institucionales @uniminuto.edu.co o @uniminuto.edu");
         }
     }
 

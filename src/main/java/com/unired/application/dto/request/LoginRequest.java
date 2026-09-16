@@ -12,8 +12,8 @@ public class LoginRequest {
     @NotBlank
     @Email
     @Pattern(
-            regexp = "^[a-zA-Z0-9._%+\\-]+@uniminuto\\.edu\\.co$",
-            message = "Solo se permiten correos @uniminuto.edu.co"
+            regexp = "^[a-zA-Z0-9._%+\\-]+@uniminuto\\.edu(\\.co)?$",
+            message = "Solo se permiten correos institucionales @uniminuto.edu.co o @uniminuto.edu"
     )
     private String correo;
 
